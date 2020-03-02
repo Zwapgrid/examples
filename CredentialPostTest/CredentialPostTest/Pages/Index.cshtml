@@ -1,0 +1,13 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Zwap store!</h1>
+    @if (User.Identity.IsAuthenticated)
+    {
+        <iframe src="@(Model.IFrameUrl)" height="600px" width="100%" style="border: 0;"></iframe>
+    }
+</div>
