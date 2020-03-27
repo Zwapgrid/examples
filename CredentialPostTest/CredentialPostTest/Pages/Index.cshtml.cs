@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Serialization;
 using CredentialPostTest.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -48,23 +45,22 @@ namespace CredentialPostTest.Pages
           
             //Fetch user
             var user = await _userManager.GetUserAsync(User);
-
+            
             //Check if user already have an active connection
             if (!user.ZgConnectionId.HasValue)
             {
                 //Create connection and store connectionId and publicKey in db
-                var (connectionId, publicKey) = await CreateConnection(
+                var connectionId = await CreateConnection(
                     user.CompanyName, 
-                    "userSecretKey", 
-                    "userStoreId");
+                    "176165196217", 
+                    "18920");
                 
                 user.ZgConnectionId = connectionId;
-                user.ZgPublicKey = publicKey;
                 await _userManager.UpdateAsync(user);
             }
 
             //Encrypt connectionId for usage in query
-            var encryptedConnectionId = GetCalculatedId(user.ZgPublicKey, user.ZgConnectionId.Value);
+            var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value);
             
             //Place user info in query
             IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}";
@@ -73,49 +69,38 @@ namespace CredentialPostTest.Pages
         [BindProperty]
         public string IFrameUrl { get; set; }
 
-        private const string ConnectionType = "InvoiceOnline";
 
-        async Task<(int, string)> CreateConnection(string title, string secretKey, string storeId)
+        async Task<int> CreateConnection(string title, string secretKey, string storeId)
         {
-            var createModel = new ZgConnectionPost
+            var createModel = new ZgConnection
             {
-                PartnerToken = _partnerToken,
-                Connection = new ZgConnection
+                Title = title,
+                InvoiceOnlineConnection = new InvoiceOnlineConnection
                 {
-                    Title = title,
-                    Type = ConnectionType,
                     SecretKey = secretKey,
                     StoreId = storeId
                 }
             };
 
-            var postConnectionResult = await Post<ZgConnectionPost, ZgConnectionPostResult>(createModel, "");
+            var connectionResult = await Post<ZgConnection, ZgConnection>(createModel, "");
 
-            if(!postConnectionResult.Connection.Id.HasValue)
+            if(string.IsNullOrEmpty(connectionResult.Id))
                 throw new Exception("Something went wrong");
             
-            var calculatedId = GetCalculatedId(postConnectionResult.PublicKey, postConnectionResult.Connection.Id.Value);
-     
-            var validateModel = new ZgValidatePost
-            {
-                Id = calculatedId,
-                PartnerToken = _partnerToken
-            };
-            
-            var validateConnectionResult = await Post<ZgValidatePost, ZgValidatePostResult>(validateModel, "/validate");
+            var validateConnectionResult = await Post<ZgConnection, ZgValidatePostResult>(connectionResult,"/validate");
 
             if (validateConnectionResult.Success)
             {
-                return (postConnectionResult.Connection.Id.Value, postConnectionResult.PublicKey);
+                return Convert.ToInt32(connectionResult.Id);
             }
 
             throw new Exception(validateConnectionResult.Message);
         }
 
         private const int PublicKeySize = 4096;
-        private string GetCalculatedId(string publicKey, int connectionId)
+        private async Task<string> GetCalculatedId(int connectionId)
         {
-            var rsaParameters = GetRsaParametersFromString(publicKey);
+            var rsaParameters = await GetRsaParameters();
             
             var toEncrypt = $"{connectionId}||{_partnerToken}";
 
@@ -125,8 +110,10 @@ namespace CredentialPostTest.Pages
             return Convert.ToBase64String(encryptedBytes);
         }
 
-        private RSAParameters GetRsaParametersFromString(string publicKey)
+        private async Task<RSAParameters> GetRsaParameters()
         {
+            var publicKey = await Get<string>("/me/public-key");
+            
             var utf8Mark = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
 
             if (publicKey.StartsWith(utf8Mark, StringComparison.Ordinal))
@@ -142,17 +129,32 @@ namespace CredentialPostTest.Pages
             throw new Exception("Something went wrong");
         }
 
+        private async Task<TResult> Get<TResult>(string endpoint) where TResult : class
+        {
+            var restClient = new HttpClient();
+            
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}");
+            
+            request.Headers.Add("Authorization", $"Partner {_partnerToken}");
+            
+            var response = await restClient.SendAsync(request);
+            
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResult>>(responseContent);
+            
+            return responseObject.Result;
+        }
+        
         private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint)
         {
-            var postJson = JsonConvert.SerializeObject(input);
-
             var restClient = new HttpClient();
 
             var request = new HttpRequestMessage(
                 HttpMethod.Post,
                 $"{_zgApiUrl}api/v1/connections{endpoint}")
             {
-                Content = new StringContent(postJson, Encoding.UTF8, "application/json"),
+                Content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json")
             };
 
             request.Headers.Add("Authorization", $"Partner {_partnerToken}");
@@ -184,21 +186,9 @@ namespace CredentialPostTest.Pages
         public bool Success { get; set; }
 
         public string Message { get; set; }
-    }
-
-    internal class ZgValidatePost
-    {
-        public string Id { get; set; }
-        public string PartnerToken { get; set; }
-    }
-
-    internal class ZgConnectionPost
-    {
-        [JsonProperty("partnerToken")]
-        public string PartnerToken { get; set; }
         
-        [JsonProperty("connection")]
-        public ZgConnection Connection { get; set; }
+        [JsonProperty("value")]
+        public string Value { get; set; }
     }
 
     internal class ZgConnection
@@ -210,30 +200,22 @@ namespace CredentialPostTest.Pages
         [JsonProperty("title", Required = Required.Always)]
         public string Title { get; set; }
         
-        /// <summary>
-        /// This is the type of connection you want to create, usually your system name in UpperCamelCase
-        /// </summary>
-        [JsonProperty("type", Required = Required.Always)]
-        public string Type { get; set; }
-        
         [JsonProperty("id")]
-        public int? Id { get; set; }
+        public string Id { get; set; }
+
+        [JsonProperty("invoiceOnline")]
+        public InvoiceOnlineConnection InvoiceOnlineConnection { get; set; }
+    }
+
+    internal class InvoiceOnlineConnection
+    {
         
         //Properties below are different depending on your specific credentials,
         //contact Zwapgrid for more info about your specific creds
-        [JsonProperty("secretKey")]
+        [JsonProperty("secretKey", Required = Required.Always)]
         public string SecretKey { get; set; }
-        
-        [JsonProperty("storeId")]
+            
+        [JsonProperty("storeId", Required = Required.Always)]
         public string StoreId { get; set; }
-    }
-
-    internal class ZgConnectionPostResult
-    {
-        [JsonProperty("publicKey")]
-        public string PublicKey { get; set; }
-        
-        [JsonProperty("connection")]
-        public ZgConnection Connection { get; set; }
     }
 }
