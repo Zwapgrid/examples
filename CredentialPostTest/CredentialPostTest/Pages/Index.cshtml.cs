@@ -52,8 +52,8 @@ namespace CredentialPostTest.Pages
                 //Create connection and store connectionId and publicKey in db
                 var connectionId = await CreateConnection(
                     user.CompanyName, 
-                    "176165196217", 
-                    "18920");
+                    {userSecretKey}, 
+                    {userStoreId});
                 
                 user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(user);
