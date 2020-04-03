@@ -64,9 +64,8 @@ namespace CredentialPostTest.Pages
             }
 
             //Encrypt connectionId for usage in query
-            var encryptedConnectionIdBytes = await GetCalculatedIdBytes(user.ZgConnectionId.Value);
-            var encryptedConnectionId = Base64UrlEncoder.Encode(encryptedConnectionIdBytes);
-            
+            var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value);
+
             //Place user info in query
             IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source=InvoiceOnline";
         }
@@ -103,7 +102,7 @@ namespace CredentialPostTest.Pages
         }
 
         private const int PublicKeySize = 4096;
-        private async Task<byte[]> GetCalculatedIdBytes(int connectionId)
+        private async Task<string> GetCalculatedId(int connectionId)
         {
             var rsaParameters = await GetRsaParameters();
             
@@ -112,7 +111,7 @@ namespace CredentialPostTest.Pages
             using var cryptoServiceProvider = new RSACryptoServiceProvider(PublicKeySize);
             cryptoServiceProvider.ImportParameters(rsaParameters);
             var encryptedBytes = cryptoServiceProvider.Encrypt(Encoding.UTF8.GetBytes(toEncrypt), false);
-            return encryptedBytes;
+            return Base64UrlEncoder.Encode(encryptedBytes);;
         }
 
         private async Task<RSAParameters> GetRsaParameters()
