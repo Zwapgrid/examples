@@ -1,13 +1,17 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using CredentialPostTest.Data;
+using CredentialPostTest.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -39,6 +43,8 @@ namespace CredentialPostTest.Pages
 
         public async Task OnGet()
         {
+            const string sourceSystem = "InvoiceOnline";
+            
             //Check that user is logged in
             if(!User.Identity.IsAuthenticated)
                 return;
@@ -52,8 +58,8 @@ namespace CredentialPostTest.Pages
                 //Create connection and store connectionId and publicKey in db
                 var connectionId = await CreateConnection(
                     user.CompanyName, 
-                    {userSecretKey}, 
-                    {userStoreId});
+                {userSecretKey}, 
+                {userStoreId});
                 
                 user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(user);
@@ -61,9 +67,9 @@ namespace CredentialPostTest.Pages
 
             //Encrypt connectionId for usage in query
             var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value);
-            
+
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}";
         }
 
         [BindProperty]
@@ -107,7 +113,7 @@ namespace CredentialPostTest.Pages
             using var cryptoServiceProvider = new RSACryptoServiceProvider(PublicKeySize);
             cryptoServiceProvider.ImportParameters(rsaParameters);
             var encryptedBytes = cryptoServiceProvider.Encrypt(Encoding.UTF8.GetBytes(toEncrypt), false);
-            return Convert.ToBase64String(encryptedBytes);
+            return Base64UrlEncoder.Encode(encryptedBytes);;
         }
 
         private async Task<RSAParameters> GetRsaParameters()
