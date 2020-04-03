@@ -43,6 +43,8 @@ namespace CredentialPostTest.Pages
 
         public async Task OnGet()
         {
+            const string sourceSystem = "InvoiceOnline";
+            
             //Check that user is logged in
             if(!User.Identity.IsAuthenticated)
                 return;
@@ -67,7 +69,7 @@ namespace CredentialPostTest.Pages
             var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value);
 
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source=InvoiceOnline";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}";
         }
 
         [BindProperty]
