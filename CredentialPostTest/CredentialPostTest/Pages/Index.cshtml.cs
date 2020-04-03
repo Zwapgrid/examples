@@ -1,13 +1,17 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using CredentialPostTest.Data;
+using CredentialPostTest.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -52,18 +56,19 @@ namespace CredentialPostTest.Pages
                 //Create connection and store connectionId and publicKey in db
                 var connectionId = await CreateConnection(
                     user.CompanyName, 
-                    {userSecretKey}, 
-                    {userStoreId});
+                {userSecretKey}, 
+                {userStoreId});
                 
                 user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(user);
             }
 
             //Encrypt connectionId for usage in query
-            var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value);
+            var encryptedConnectionIdBytes = await GetCalculatedIdBytes(user.ZgConnectionId.Value);
+            var encryptedConnectionId = Base64UrlEncoder.Encode(encryptedConnectionIdBytes);
             
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source=InvoiceOnline";
         }
 
         [BindProperty]
@@ -98,7 +103,7 @@ namespace CredentialPostTest.Pages
         }
 
         private const int PublicKeySize = 4096;
-        private async Task<string> GetCalculatedId(int connectionId)
+        private async Task<byte[]> GetCalculatedIdBytes(int connectionId)
         {
             var rsaParameters = await GetRsaParameters();
             
@@ -107,7 +112,7 @@ namespace CredentialPostTest.Pages
             using var cryptoServiceProvider = new RSACryptoServiceProvider(PublicKeySize);
             cryptoServiceProvider.ImportParameters(rsaParameters);
             var encryptedBytes = cryptoServiceProvider.Encrypt(Encoding.UTF8.GetBytes(toEncrypt), false);
-            return Convert.ToBase64String(encryptedBytes);
+            return encryptedBytes;
         }
 
         private async Task<RSAParameters> GetRsaParameters()
