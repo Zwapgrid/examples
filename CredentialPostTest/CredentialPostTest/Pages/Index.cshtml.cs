@@ -55,7 +55,7 @@ namespace CredentialPostTest.Pages
             //Check if user already have an active connection
             if (!user.ZgConnectionId.HasValue)
             {
-                //Create connection and store connectionId and publicKey in db
+                //Create connection and store connectionId
                 var connectionId = await CreateConnection(
                     user.CompanyName, 
                 {userSecretKey}, 
