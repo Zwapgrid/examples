@@ -208,16 +208,16 @@ namespace CredentialPostTest.Pages
         
         [JsonProperty("id")]
         public string Id { get; set; }
-
+        
+        // Use the connection type for your system
         [JsonProperty("invoiceOnline")]
         public InvoiceOnlineConnection InvoiceOnlineConnection { get; set; }
+        
+        // More connection types will be added here....
     }
 
     internal class InvoiceOnlineConnection
-    {
-        
-        //Properties below are different depending on your specific credentials,
-        //contact Zwapgrid for more info about your specific creds
+    {        
         [JsonProperty("secretKey", Required = Required.Always)]
         public string SecretKey { get; set; }
             
