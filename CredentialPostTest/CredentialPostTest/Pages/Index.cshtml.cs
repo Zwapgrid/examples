@@ -68,8 +68,11 @@ namespace CredentialPostTest.Pages
             //Encrypt connectionId for usage in query
             var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value);
 
+            //Add hide source to hide the connection in the view, this is recommended to give a better experience for user
+            var hideSource = true.ToString();
+            
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
         }
 
         [BindProperty]
