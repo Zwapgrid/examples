@@ -69,3 +69,13 @@ body {
   white-space: nowrap;
   line-height: 60px; /* Vertically center the text there */
 }
+
+.integration-created-block {
+    width: 100%;
+    text-align: center;
+    margin-top: 1em;
+    text-transform: uppercase;
+    border: 1px solid lawngreen;
+    padding: 1em;
+    border-radius: 1em;
+}
