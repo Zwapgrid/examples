@@ -11,8 +11,11 @@ function bindEvent(element, eventName, eventHandler) {
 }
 
 //here goes the code which should be run on iframe parent when integration is created 
-function processResult(result) {
+function processIntegrationCreatedResult(result) {
     let systems = result.split('|');
+    if (!systems || systems.length != 2) {
+        return;
+    }
     let sourceSystem = systems[0];
     let targetSystem = systems[1];
     var message = document.getElementById('message');
@@ -23,5 +26,5 @@ function processResult(result) {
 }
 
 bindEvent(window, 'message', function (e) {
-    processResult(e.data);
+    processIntegrationCreatedResult(e.data);
 });
