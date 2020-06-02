@@ -10,9 +10,26 @@ function bindEvent(element, eventName, eventHandler) {
     }
 }
 
-//here goes the code which should be run on iframe parent when integration is created 
-function processIntegrationCreatedResult(result) {
-    let systems = result.split('|');
+bindEvent(window, 'message', function (e) {
+    let message = JSON.parse(e.data);
+    if (!message) {
+        return;
+    }
+
+    // These arrays will be expanded in future with new message types and handlers
+    var messageTypes = ['integration.created'];
+    var handlers = [processIntegrationCreatedResult];
+
+    if (messageTypes.indexOf(message.type) < 0){
+        return;
+    }
+
+    let handler = handlers[messageTypes.indexOf(message.type)];
+    handler(message.data);
+});
+
+// Message handlers go here
+function processIntegrationCreatedResult(systems) {
     if (!systems || systems.length != 2) {
         return;
     }
@@ -24,7 +41,3 @@ function processIntegrationCreatedResult(result) {
         message.innerHTML = 'Integration between <b>' + sourceSystem + '</b> and <b>' + targetSystem + '</b> was created successfully!';
     }
 }
-
-bindEvent(window, 'message', function (e) {
-    processIntegrationCreatedResult(e.data);
-});
