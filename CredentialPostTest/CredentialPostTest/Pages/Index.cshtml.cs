@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -28,6 +29,8 @@ namespace CredentialPostTest.Pages
         private readonly string _partnerToken;
         private readonly string _zgApiUrl;
         private readonly string _zgAppUrl;
+        private readonly string _clientId;
+        private readonly string _clientSecret;
 
         public IndexModel(
             ILogger<IndexModel> logger,
@@ -39,6 +42,8 @@ namespace CredentialPostTest.Pages
             _partnerToken = configuration.GetValue<string>("Zwapgrid:PartnerToken");
             _zgApiUrl = configuration.GetValue<string>("Zwapgrid:ApiUrl");
             _zgAppUrl = configuration.GetValue<string>("Zwapgrid:AppUrl");
+            _clientId = configuration.GetValue<string>("Zwapgrid:ClientId");
+            _clientSecret = configuration.GetValue<string>("Zwapgrid:ClientSecret");
         }
 
         public async Task OnGet()
@@ -70,9 +75,11 @@ namespace CredentialPostTest.Pages
 
             //Add hide source to hide the connection in the view, this is recommended to give a better experience for user
             var hideSource = true.ToString();
-            
+            //Receive one time code, using client id and secret
+            var otc = await GetOneTimeCodeAsync();
+
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?token={_partnerToken}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={otc}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
         }
 
         [BindProperty]
@@ -176,6 +183,33 @@ namespace CredentialPostTest.Pages
             
             return responseObject.Result;
         }
+
+        private async Task<string> GetOneTimeCodeAsync()
+        {
+            var requestParams = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("client_id", _clientId),
+                new KeyValuePair<string, string>("client_secret", _clientSecret),
+                new KeyValuePair<string, string>("response_type", "one_time_code")
+            };
+
+            var restClient = new HttpClient();
+
+            var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{_zgApiUrl}/connect/clientauthentication")
+            {
+                Content = new FormUrlEncodedContent(requestParams)
+            };
+
+            var response = await restClient.SendAsync(request);
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            var responseObject = JsonConvert.DeserializeObject<OneTimeCodeResponse>(responseContent);
+
+            return responseObject.Otc;
+        }
     }
 
     internal class ZgApiResponse<TType>
@@ -198,6 +232,12 @@ namespace CredentialPostTest.Pages
         
         [JsonProperty("value")]
         public string Value { get; set; }
+    }
+
+    internal class OneTimeCodeResponse
+    {
+        [JsonProperty("one_time_code")]
+        public string Otc { get; set; }
     }
 
     internal class ZgConnection
