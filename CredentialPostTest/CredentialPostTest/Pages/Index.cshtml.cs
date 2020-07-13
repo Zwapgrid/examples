@@ -144,15 +144,18 @@ namespace CredentialPostTest.Pages
 
         private async Task<TResult> Get<TResult>(string endpoint) where TResult : class
         {
-            var restClient = new HttpClient();
-            
-            var request = new HttpRequestMessage(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}");
-            
-            request.Headers.Add("Authorization", $"Partner {_partnerToken}");
-            
-            var response = await restClient.SendAsync(request);
-            
-            var responseContent = await response.Content.ReadAsStringAsync();
+            string responseContent;
+            using (var restClient = new HttpClient())
+            {
+                using(var request = new HttpRequestMessage(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}"))
+                {
+                    request.Headers.Add("Authorization", $"Partner {_partnerToken}");
+
+                    var response = await restClient.SendAsync(request);
+
+                    responseContent = await response.Content.ReadAsStringAsync();
+                }
+            }
 
             var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResult>>(responseContent);
             
@@ -161,20 +164,21 @@ namespace CredentialPostTest.Pages
         
         private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint)
         {
-            var restClient = new HttpClient();
-
-            var request = new HttpRequestMessage(
-                HttpMethod.Post,
-                $"{_zgApiUrl}api/v1/connections{endpoint}")
+            string responseContent;
+            using (var restClient = new HttpClient())
             {
-                Content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json")
-            };
+                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}api/v1/connections{endpoint}")
+                {
+                    Content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json")
+                })
+                {
+                    request.Headers.Add("Authorization", $"Partner {_partnerToken}");
 
-            request.Headers.Add("Authorization", $"Partner {_partnerToken}");
-            
-            var response = await restClient.SendAsync(request);
+                    var response = await restClient.SendAsync(request);
 
-            var responseContent = await response.Content.ReadAsStringAsync();
+                    responseContent = await response.Content.ReadAsStringAsync();
+                }
+            }
 
             var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResult>>(responseContent);
             
@@ -193,14 +197,15 @@ namespace CredentialPostTest.Pages
             string responseContent;
             using (var restClient = new HttpClient())
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}/connect/clientauthentication")
+                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}/connect/clientauthentication")
                 {
                     Content = new FormUrlEncodedContent(requestParams)
-                };
+                })
+                {
+                    var response = await restClient.SendAsync(request);
 
-                var response = await restClient.SendAsync(request);
-
-                responseContent = await response.Content.ReadAsStringAsync();
+                    responseContent = await response.Content.ReadAsStringAsync();
+                }
             }
 
             var responseObject = JsonConvert.DeserializeObject<OneTimeCodeResponse>(responseContent);
