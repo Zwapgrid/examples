@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web;
 using CredentialPostTest.Data;
 using CredentialPostTest.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -193,22 +190,22 @@ namespace CredentialPostTest.Pages
                 new KeyValuePair<string, string>("response_type", "one_time_code")
             };
 
-            var restClient = new HttpClient();
-
-            var request = new HttpRequestMessage(
-                HttpMethod.Post,
-                $"{_zgApiUrl}/connect/clientauthentication")
+            string responseContent;
+            using (var restClient = new HttpClient())
             {
-                Content = new FormUrlEncodedContent(requestParams)
-            };
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}/connect/clientauthentication")
+                {
+                    Content = new FormUrlEncodedContent(requestParams)
+                };
 
-            var response = await restClient.SendAsync(request);
+                var response = await restClient.SendAsync(request);
 
-            var responseContent = await response.Content.ReadAsStringAsync();
+                responseContent = await response.Content.ReadAsStringAsync();
+            }
 
             var responseObject = JsonConvert.DeserializeObject<OneTimeCodeResponse>(responseContent);
 
-            return responseObject.Otc;
+            return responseObject?.Otc;
         }
     }
 
