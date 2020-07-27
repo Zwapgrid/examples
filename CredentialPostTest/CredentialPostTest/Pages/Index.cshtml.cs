@@ -187,19 +187,18 @@ namespace CredentialPostTest.Pages
 
         private async Task<string> GetOneTimeCodeAsync()
         {
-            var requestParams = new List<KeyValuePair<string, string>>
+            var otcRequest = new OneTimeCodeRequest
             {
-                new KeyValuePair<string, string>("client_id", _clientId),
-                new KeyValuePair<string, string>("client_secret", _clientSecret),
-                new KeyValuePair<string, string>("response_type", "one_time_code")
+                ClientId = _clientId,
+                ClientSecret = _clientSecret,
             };
 
             string responseContent;
             using (var restClient = new HttpClient())
             {
-                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}/connect/clientauthentication")
+                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}/api/zwapstore/one-time-code")
                 {
-                    Content = new FormUrlEncodedContent(requestParams)
+                    Content = new StringContent(JsonConvert.SerializeObject(otcRequest), Encoding.UTF8, "application/json")
                 })
                 {
                     var response = await restClient.SendAsync(request);
@@ -208,9 +207,9 @@ namespace CredentialPostTest.Pages
                 }
             }
 
-            var responseObject = JsonConvert.DeserializeObject<OneTimeCodeResponse>(responseContent);
+            var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<OneTimeCodeResponse>>(responseContent);
 
-            return responseObject?.Otc;
+            return responseObject?.Result.Otc;
         }
     }
 
@@ -236,6 +235,13 @@ namespace CredentialPostTest.Pages
         public string Value { get; set; }
     }
 
+    internal class OneTimeCodeRequest
+    {
+        public string ClientId { get; set; }
+
+        public string ClientSecret { get; set; }
+    }
+    
     internal class OneTimeCodeResponse
     {
         [JsonProperty("one_time_code")]
