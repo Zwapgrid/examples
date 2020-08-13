@@ -52,7 +52,7 @@ namespace CredentialPostTest.Pages
             //Fetch user
             var user = await _userManager.GetUserAsync(User);
             
-            //Receive one time code, using client id and secret
+            //Fetch one time code, using client id and secret
             var otc = await GetOneTimeCodeAsync();
             
             //Check if user already have an active connection
@@ -64,7 +64,7 @@ namespace CredentialPostTest.Pages
                 user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(user);
             }
-            
+
             //Encrypt connectionId for usage in query
             var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value, otc);
 
@@ -204,7 +204,7 @@ namespace CredentialPostTest.Pages
 
             var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<OneTimeCodeResponse>>(responseContent);
 
-            return responseObject?.Result.Otc;
+            return responseObject?.Result.OneTimeCode;
         }
     }
 
@@ -239,8 +239,7 @@ namespace CredentialPostTest.Pages
     
     internal class OneTimeCodeResponse
     {
-        [JsonProperty("oneTimeCode")]
-        public string Otc { get; set; }
+        public string OneTimeCode { get; set; }
     }
 
     internal class ZgConnection
