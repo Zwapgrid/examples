@@ -23,7 +23,6 @@ namespace CredentialPostTest.Pages
     {
         private readonly ILogger<IndexModel> _logger;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly string _partnerToken;
         private readonly string _zgApiUrl;
         private readonly string _zgAppUrl;
         private readonly string _clientId;
@@ -36,7 +35,6 @@ namespace CredentialPostTest.Pages
         {
             _logger = logger;
             _userManager = userManager;
-            _partnerToken = configuration.GetValue<string>("Zwapgrid:PartnerToken");
             _zgApiUrl = configuration.GetValue<string>("Zwapgrid:ApiUrl");
             _zgAppUrl = configuration.GetValue<string>("Zwapgrid:AppUrl");
             _clientId = configuration.GetValue<string>("Zwapgrid:ClientId");
@@ -54,26 +52,24 @@ namespace CredentialPostTest.Pages
             //Fetch user
             var user = await _userManager.GetUserAsync(User);
             
+            //Fetch one time code, using client id and secret
+            var otc = await GetOneTimeCodeAsync();
+            
             //Check if user already have an active connection
             if (!user.ZgConnectionId.HasValue)
             {
                 //Create connection and store connectionId
-                var connectionId = await CreateConnection(
-                    user.CompanyName, 
-                {userSecretKey}, 
-                {userStoreId});
+                var connectionId = await CreateConnection(user.CompanyName, {userSecretKey}, {userStoreId}, otc);
                 
                 user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(user);
             }
 
             //Encrypt connectionId for usage in query
-            var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value);
+            var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value, otc);
 
             //Add hide source to hide the connection in the view, this is recommended to give a better experience for user
             var hideSource = true.ToString();
-            //Receive one time code, using client id and secret
-            var otc = await GetOneTimeCodeAsync();
 
             //Place user info in query
             IFrameUrl = $"{_zgAppUrl}zwapstore?otc={otc}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
@@ -81,9 +77,8 @@ namespace CredentialPostTest.Pages
 
         [BindProperty]
         public string IFrameUrl { get; set; }
-
-
-        async Task<int> CreateConnection(string title, string secretKey, string storeId)
+        
+        async Task<int> CreateConnection(string title, string secretKey, string storeId, string otc)
         {
             var createModel = new ZgConnection
             {
@@ -95,12 +90,12 @@ namespace CredentialPostTest.Pages
                 }
             };
 
-            var connectionResult = await Post<ZgConnection, ZgConnection>(createModel, "");
+            var connectionResult = await Post<ZgConnection, ZgConnection>(createModel, "", otc);
 
             if(string.IsNullOrEmpty(connectionResult.Id))
                 throw new Exception("Something went wrong");
             
-            var validateConnectionResult = await Post<ZgConnection, ZgValidatePostResult>(connectionResult,"/validate");
+            var validateConnectionResult = await Post<ZgConnection, ZgValidatePostResult>(connectionResult,"/validate", otc);
 
             if (validateConnectionResult.Success)
             {
@@ -111,21 +106,21 @@ namespace CredentialPostTest.Pages
         }
 
         private const int PublicKeySize = 4096;
-        private async Task<string> GetCalculatedId(int connectionId)
+        private async Task<string> GetCalculatedId(int connectionId, string otc)
         {
-            var rsaParameters = await GetRsaParameters();
+            var rsaParameters = await GetRsaParameters(otc);
             
-            var toEncrypt = $"{connectionId}||{_partnerToken}";
+            var toEncrypt = $"{connectionId}||{otc}";
 
             using var cryptoServiceProvider = new RSACryptoServiceProvider(PublicKeySize);
             cryptoServiceProvider.ImportParameters(rsaParameters);
             var encryptedBytes = cryptoServiceProvider.Encrypt(Encoding.UTF8.GetBytes(toEncrypt), false);
-            return Base64UrlEncoder.Encode(encryptedBytes);;
+            return Base64UrlEncoder.Encode(encryptedBytes);
         }
 
-        private async Task<RSAParameters> GetRsaParameters()
+        private async Task<RSAParameters> GetRsaParameters(string otc)
         {
-            var publicKey = await Get<string>("/me/public-key");
+            var publicKey = await Get<string>("/me/public-key", otc);
             
             var utf8Mark = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
 
@@ -142,14 +137,14 @@ namespace CredentialPostTest.Pages
             throw new Exception("Something went wrong");
         }
 
-        private async Task<TResult> Get<TResult>(string endpoint) where TResult : class
+        private async Task<TResult> Get<TResult>(string endpoint, string otc) where TResult : class
         {
             string responseContent;
             using (var restClient = new HttpClient())
             {
                 using(var request = new HttpRequestMessage(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}"))
                 {
-                    request.Headers.Add("Authorization", $"Partner {_partnerToken}");
+                    request.Headers.Add("OneTimeCode", otc);
 
                     var response = await restClient.SendAsync(request);
 
@@ -162,7 +157,7 @@ namespace CredentialPostTest.Pages
             return responseObject.Result;
         }
         
-        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint)
+        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint, string otc)
         {
             string responseContent;
             using (var restClient = new HttpClient())
@@ -172,7 +167,7 @@ namespace CredentialPostTest.Pages
                     Content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json")
                 })
                 {
-                    request.Headers.Add("Authorization", $"Partner {_partnerToken}");
+                    request.Headers.Add("OneTimeCode", otc);
 
                     var response = await restClient.SendAsync(request);
 
@@ -196,7 +191,7 @@ namespace CredentialPostTest.Pages
             string responseContent;
             using (var restClient = new HttpClient())
             {
-                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}/api/zwapstore/one-time-code")
+                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}api/zwapstore/one-time-code")
                 {
                     Content = new StringContent(JsonConvert.SerializeObject(otcRequest), Encoding.UTF8, "application/json")
                 })
@@ -209,7 +204,7 @@ namespace CredentialPostTest.Pages
 
             var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<OneTimeCodeResponse>>(responseContent);
 
-            return responseObject?.Result.Otc;
+            return responseObject?.Result.OneTimeCode;
         }
     }
 
@@ -244,8 +239,7 @@ namespace CredentialPostTest.Pages
     
     internal class OneTimeCodeResponse
     {
-        [JsonProperty("one_time_code")]
-        public string Otc { get; set; }
+        public string OneTimeCode { get; set; }
     }
 
     internal class ZgConnection
