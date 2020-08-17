@@ -61,7 +61,7 @@ namespace CredentialPostTest.Pages
             if (!user.ZgConnectionId.HasValue)
             {
                 //Create connection and store connectionId
-                var connectionId = await CreateConnection(user.CompanyName, "176165196217", "18920", otc);
+                var connectionId = await CreateConnection(user.CompanyName, {userSecretKey}, {userStoreId}, otc);
                 
                 user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(user);
