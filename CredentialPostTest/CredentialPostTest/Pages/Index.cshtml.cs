@@ -27,6 +27,7 @@ namespace CredentialPostTest.Pages
         private readonly string _zgAppUrl;
         private readonly string _clientId;
         private readonly string _clientSecret;
+        private readonly string _accessToken;
 
         public IndexModel(
             ILogger<IndexModel> logger,
@@ -39,6 +40,7 @@ namespace CredentialPostTest.Pages
             _zgAppUrl = configuration.GetValue<string>("Zwapgrid:AppUrl");
             _clientId = configuration.GetValue<string>("Zwapgrid:ClientId");
             _clientSecret = configuration.GetValue<string>("Zwapgrid:ClientSecret");
+            _accessToken = configuration.GetValue<string>("Zwapgrid:AccessToken");
         }
 
         public async Task OnGet()
@@ -59,7 +61,7 @@ namespace CredentialPostTest.Pages
             if (!user.ZgConnectionId.HasValue)
             {
                 //Create connection and store connectionId
-                var connectionId = await CreateConnection(user.CompanyName, {userSecretKey}, {userStoreId}, otc);
+                var connectionId = await CreateConnection(user.CompanyName, "176165196217", "18920", otc);
                 
                 user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(user);
@@ -90,12 +92,12 @@ namespace CredentialPostTest.Pages
                 }
             };
 
-            var connectionResult = await Post<ZgConnection, ZgConnection>(createModel, "", otc);
+            var connectionResult = await Post<ZgConnection, ZgConnection>(createModel, "");
 
             if(string.IsNullOrEmpty(connectionResult.Id))
                 throw new Exception("Something went wrong");
             
-            var validateConnectionResult = await Post<ZgConnection, ZgValidatePostResult>(connectionResult,"/validate", otc);
+            var validateConnectionResult = await Post<ZgConnection, ZgValidatePostResult>(connectionResult,"/validate");
 
             if (validateConnectionResult.Success)
             {
@@ -108,7 +110,7 @@ namespace CredentialPostTest.Pages
         private const int PublicKeySize = 4096;
         private async Task<string> GetCalculatedId(int connectionId, string otc)
         {
-            var rsaParameters = await GetRsaParameters(otc);
+            var rsaParameters = await GetRsaParameters();
             
             var toEncrypt = $"{connectionId}||{otc}";
 
@@ -118,9 +120,9 @@ namespace CredentialPostTest.Pages
             return Base64UrlEncoder.Encode(encryptedBytes);
         }
 
-        private async Task<RSAParameters> GetRsaParameters(string otc)
+        private async Task<RSAParameters> GetRsaParameters()
         {
-            var publicKey = await Get<string>("/me/public-key", otc);
+            var publicKey = await Get<string>("/me/public-key");
             
             var utf8Mark = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
 
@@ -137,14 +139,14 @@ namespace CredentialPostTest.Pages
             throw new Exception("Something went wrong");
         }
 
-        private async Task<TResult> Get<TResult>(string endpoint, string otc) where TResult : class
+        private async Task<TResult> Get<TResult>(string endpoint) where TResult : class
         {
             string responseContent;
             using (var restClient = new HttpClient())
             {
                 using(var request = new HttpRequestMessage(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}"))
                 {
-                    request.Headers.Add("OneTimeCode", otc);
+                    request.Headers.Add("Authorization", "Bearer " + _accessToken);
 
                     var response = await restClient.SendAsync(request);
 
@@ -157,7 +159,7 @@ namespace CredentialPostTest.Pages
             return responseObject.Result;
         }
         
-        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint, string otc)
+        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint)
         {
             string responseContent;
             using (var restClient = new HttpClient())
@@ -167,7 +169,7 @@ namespace CredentialPostTest.Pages
                     Content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json")
                 })
                 {
-                    request.Headers.Add("OneTimeCode", otc);
+                    request.Headers.Add("Authorization", "Bearer " + _accessToken);
 
                     var response = await restClient.SendAsync(request);
 
