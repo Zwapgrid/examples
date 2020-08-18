@@ -24,5 +24,9 @@ namespace CredentialPostTest.Data
         public int? ZgConnectionId { get; set; }
         
         public string ZgPublicKey { get; set; }
+
+        public string AccessToken { get; set; }
+
+        public string RefreshToken { get; set; }
     }
 }

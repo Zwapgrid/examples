@@ -1,0 +1,9 @@
+namespace CredentialPostTest.Data.Models
+{
+    internal class RefreshTokenResponse
+    {
+        public string AccessToken { get; set; }
+
+        public string RefreshToken { get; set; }
+    }
+}
