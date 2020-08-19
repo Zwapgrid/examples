@@ -56,6 +56,10 @@ namespace CredentialPostTest.Pages
           
             //Fetch user
             _user = await _userManager.GetUserAsync(User);
+            if (_user == null)
+            {
+                throw new Exception("User does not exist");
+            }
 
             //Fetch one time code, using client id and secret
             _otc = await GetOneTimeCodeAsync();
@@ -64,7 +68,7 @@ namespace CredentialPostTest.Pages
             if (!_user.ZgConnectionId.HasValue)
             {
                 //Create connection and store connectionId
-                var connectionId = await CreateConnection(_user.CompanyName, {userSecretKey}, {userStoreId}, otc);
+                var connectionId = await CreateConnection(_user.CompanyName, {userSecretKey}, {userStoreId});
                 
                 _user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(_user);
@@ -242,13 +246,13 @@ namespace CredentialPostTest.Pages
         
         private void AddAuthorizationHeader(HttpRequestMessage request)
         {
-            if (!string.IsNullOrEmpty(_otc))
-            {
-                request.Headers.Add("OneTimeCode", _otc);
-            }
             if (!string.IsNullOrEmpty(_user.AccessToken))
             {
                 request.Headers.Add("Authorization", "Bearer " + _user.AccessToken);
+            }
+            else if (!string.IsNullOrEmpty(_otc))
+            {
+                request.Headers.Add("Authorization", "OneTimeCode " + _otc);
             }
         }
 
