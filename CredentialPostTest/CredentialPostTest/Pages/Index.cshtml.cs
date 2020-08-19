@@ -1,11 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using CredentialPostTest.Data;
+using CredentialPostTest.Data.Models;
 using CredentialPostTest.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -28,6 +29,10 @@ namespace CredentialPostTest.Pages
         private readonly string _clientId;
         private readonly string _clientSecret;
 
+        private ApplicationUser _user;
+        
+        private string _otc;
+        
         public IndexModel(
             ILogger<IndexModel> logger,
             UserManager<ApplicationUser> userManager,
@@ -50,35 +55,39 @@ namespace CredentialPostTest.Pages
                 return;
           
             //Fetch user
-            var user = await _userManager.GetUserAsync(User);
-            
+            _user = await _userManager.GetUserAsync(User);
+            if (_user == null)
+            {
+                throw new Exception("User does not exist");
+            }
+
             //Fetch one time code, using client id and secret
-            var otc = await GetOneTimeCodeAsync();
+            _otc = await GetOneTimeCodeAsync();
             
             //Check if user already have an active connection
-            if (!user.ZgConnectionId.HasValue)
+            if (!_user.ZgConnectionId.HasValue)
             {
                 //Create connection and store connectionId
-                var connectionId = await CreateConnection(user.CompanyName, {userSecretKey}, {userStoreId}, otc);
+                var connectionId = await CreateConnection(_user.CompanyName, {userSecretKey}, {userStoreId});
                 
-                user.ZgConnectionId = connectionId;
-                await _userManager.UpdateAsync(user);
+                _user.ZgConnectionId = connectionId;
+                await _userManager.UpdateAsync(_user);
             }
 
             //Encrypt connectionId for usage in query
-            var encryptedConnectionId = await GetCalculatedId(user.ZgConnectionId.Value, otc);
+            var encryptedConnectionId = await GetCalculatedId(_user.ZgConnectionId.Value);
 
             //Add hide source to hide the connection in the view, this is recommended to give a better experience for user
             var hideSource = true.ToString();
 
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={otc}&name={user.CompanyName}&orgno={user.CompanyOrgNo}&email={user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
         }
 
         [BindProperty]
         public string IFrameUrl { get; set; }
         
-        async Task<int> CreateConnection(string title, string secretKey, string storeId, string otc)
+        async Task<int> CreateConnection(string title, string secretKey, string storeId)
         {
             var createModel = new ZgConnection
             {
@@ -90,12 +99,12 @@ namespace CredentialPostTest.Pages
                 }
             };
 
-            var connectionResult = await Post<ZgConnection, ZgConnection>(createModel, "", otc);
+            var connectionResult = await Post<ZgConnection, ZgConnection>(createModel, "");
 
             if(string.IsNullOrEmpty(connectionResult.Id))
                 throw new Exception("Something went wrong");
             
-            var validateConnectionResult = await Post<ZgConnection, ZgValidatePostResult>(connectionResult,"/validate", otc);
+            var validateConnectionResult = await Post<ZgConnection, ZgValidatePostResult>(connectionResult,"/validate");
 
             if (validateConnectionResult.Success)
             {
@@ -106,11 +115,11 @@ namespace CredentialPostTest.Pages
         }
 
         private const int PublicKeySize = 4096;
-        private async Task<string> GetCalculatedId(int connectionId, string otc)
+        private async Task<string> GetCalculatedId(int connectionId)
         {
-            var rsaParameters = await GetRsaParameters(otc);
+            var rsaParameters = await GetRsaParameters();
             
-            var toEncrypt = $"{connectionId}||{otc}";
+            var toEncrypt = $"{connectionId}||{_otc}";
 
             using var cryptoServiceProvider = new RSACryptoServiceProvider(PublicKeySize);
             cryptoServiceProvider.ImportParameters(rsaParameters);
@@ -118,9 +127,9 @@ namespace CredentialPostTest.Pages
             return Base64UrlEncoder.Encode(encryptedBytes);
         }
 
-        private async Task<RSAParameters> GetRsaParameters(string otc)
+        private async Task<RSAParameters> GetRsaParameters()
         {
-            var publicKey = await Get<string>("/me/public-key", otc);
+            var publicKey = await Get<string>("/me/public-key");
             
             var utf8Mark = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
 
@@ -137,16 +146,14 @@ namespace CredentialPostTest.Pages
             throw new Exception("Something went wrong");
         }
 
-        private async Task<TResult> Get<TResult>(string endpoint, string otc) where TResult : class
+        private async Task<TResult> Get<TResult>(string endpoint) where TResult : class
         {
             string responseContent;
             using (var restClient = new HttpClient())
             {
                 using(var request = new HttpRequestMessage(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}"))
                 {
-                    request.Headers.Add("OneTimeCode", otc);
-
-                    var response = await restClient.SendAsync(request);
+                    var response = await GetResponseMessageAsync(request, restClient);
 
                     responseContent = await response.Content.ReadAsStringAsync();
                 }
@@ -157,7 +164,7 @@ namespace CredentialPostTest.Pages
             return responseObject.Result;
         }
         
-        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint, string otc)
+        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint)
         {
             string responseContent;
             using (var restClient = new HttpClient())
@@ -167,9 +174,7 @@ namespace CredentialPostTest.Pages
                     Content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json")
                 })
                 {
-                    request.Headers.Add("OneTimeCode", otc);
-
-                    var response = await restClient.SendAsync(request);
+                    var response = await GetResponseMessageAsync(request, restClient);
 
                     responseContent = await response.Content.ReadAsStringAsync();
                 }
@@ -188,85 +193,89 @@ namespace CredentialPostTest.Pages
                 ClientSecret = _clientSecret,
             };
 
+            var response = await CallZwapstoreAsync<OneTimeCodeRequest, OneTimeCodeResponse>(otcRequest, "one-time-code");
+
+            return response?.OneTimeCode;
+        }
+
+        private async Task Handle401Async()
+        {
+            // If no refresh token, clear access token and exit
+            if (string.IsNullOrEmpty(_user.RefreshToken))
+            {
+                _user.AccessToken = string.Empty;
+                return;
+            }
+            else
+            {
+                var request = new RefreshTokenRequest
+                {
+                    ClientId = _clientId,
+                    ClientSecret = _clientSecret,
+                    RefreshToken = _user.RefreshToken
+                };
+                
+                var response = await CallZwapstoreAsync<RefreshTokenRequest, RefreshTokenResponse>(request, "refresh-token");
+                _user.AccessToken = response?.AccessToken;
+                _user.RefreshToken = response?.RefreshToken;
+            }
+
+            await _userManager.UpdateAsync(_user);
+        }
+        
+        private async Task<TResponse> CallZwapstoreAsync<TRequest, TResponse>(TRequest requestModel, string endpoint) where TResponse: class
+        {
             string responseContent;
             using (var restClient = new HttpClient())
             {
-                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}api/zwapstore/one-time-code")
+                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}api/zwapstore/{endpoint}")
                 {
-                    Content = new StringContent(JsonConvert.SerializeObject(otcRequest), Encoding.UTF8, "application/json")
+                    Content = new StringContent(JsonConvert.SerializeObject(requestModel), Encoding.UTF8, "application/json")
                 })
                 {
-                    var response = await restClient.SendAsync(request);
+                    var response = await GetResponseMessageAsync(request, restClient);
 
                     responseContent = await response.Content.ReadAsStringAsync();
                 }
             }
 
-            var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<OneTimeCodeResponse>>(responseContent);
+            var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResponse>>(responseContent);
 
-            return responseObject?.Result.OneTimeCode;
+            return responseObject?.Result;
         }
-    }
-
-    internal class ZgApiResponse<TType>
-    {
-        [JsonProperty("result")]
-        public TType Result { get; set; }
         
-        [JsonProperty("success")]
-        public bool Success { get; set; }
-        
-        [JsonProperty("error")]
-        public string Error { get; set; }
-    }
-    
-    internal class ZgValidatePostResult
-    {
-        public bool Success { get; set; }
+        private void AddAuthorizationHeader(HttpRequestMessage request)
+        {
+            if (!string.IsNullOrEmpty(_user.AccessToken))
+            {
+                request.Headers.Add("Authorization", "Bearer " + _user.AccessToken);
+            }
+            else if (!string.IsNullOrEmpty(_otc))
+            {
+                request.Headers.Add("Authorization", "OneTimeCode " + _otc);
+            }
+        }
 
-        public string Message { get; set; }
-        
-        [JsonProperty("value")]
-        public string Value { get; set; }
-    }
+        private async Task<HttpResponseMessage> GetResponseMessageAsync(HttpRequestMessage request, HttpClient client)
+        {
+            AddAuthorizationHeader(request);
 
-    internal class OneTimeCodeRequest
-    {
-        public string ClientId { get; set; }
+            var response = await client.SendAsync(request);
 
-        public string ClientSecret { get; set; }
-    }
-    
-    internal class OneTimeCodeResponse
-    {
-        public string OneTimeCode { get; set; }
-    }
-
-    internal class ZgConnection
-    {
-        /// <summary>
-        /// This is used in Zwapgrid UI to identify the specific connection amongst others of the same type
-        /// Recommended to be the account or company name
-        /// </summary>
-        [JsonProperty("title", Required = Required.Always)]
-        public string Title { get; set; }
-        
-        [JsonProperty("id")]
-        public string Id { get; set; }
-        
-        // Use the connection type for your system
-        [JsonProperty("invoiceOnline")]
-        public InvoiceOnlineConnection InvoiceOnlineConnection { get; set; }
-        
-        // More connection types will be added here....
-    }
-
-    internal class InvoiceOnlineConnection
-    {        
-        [JsonProperty("secretKey", Required = Required.Always)]
-        public string SecretKey { get; set; }
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                await Handle401Async();
+            }
+            else
+            {
+                return response;
+            }
             
-        [JsonProperty("storeId", Required = Required.Always)]
-        public string StoreId { get; set; }
+            AddAuthorizationHeader(request);
+            
+            response = await client.SendAsync(request);
+
+            return response;
+        }
     }
 }
