@@ -52,8 +52,11 @@ namespace CredentialPostTest.Pages
             
             //Check that user is logged in
             if(!User.Identity.IsAuthenticated)
+            {
                 return;
           
+            }
+            
             //Fetch user
             _user = await _userManager.GetUserAsync(User);
             if (_user == null)
@@ -84,9 +87,57 @@ namespace CredentialPostTest.Pages
             IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
         }
 
+        public async Task<IActionResult> OnGetAccessToken(string authCode)
+        {
+            var request = new AccessTokenRequest
+            {
+                ClientId = _clientId,
+                ClientSecret = _clientSecret,
+                Code = authCode
+            };
+            var res = await CallZwapstoreAsync<AccessTokenRequest, TokenResponse>(request, "access-token", false);
+
+            var otcWithUser = string.Empty;
+            if (res?.Response != null && User != null)
+            {
+                var user = await _userManager.GetUserAsync(User);
+                await UpdateUserTokensAsync(user, res.Response.AccessToken, res.Response.RefreshToken);
+
+                //Check whether we still need thi guy
+                otcWithUser = await GetOneTimeCodeAsync();
+            }
+
+            return new JsonResult(new { AccessToken = res?.Response?.AccessToken, Otc = otcWithUser });
+        }
+
+        public async Task<IActionResult> OnGetRefreshAccessToken()
+        {
+            if (User == null)
+            {
+                return Unauthorized();
+            }
+            
+            var user = await _userManager.GetUserAsync(User);
+            var request = new RefreshTokenRequest
+            {
+                ClientId = _clientId,
+                ClientSecret = _clientSecret,
+                RefreshToken = user.RefreshToken
+            };
+            
+            var res = await CallZwapstoreAsync<RefreshTokenRequest, TokenResponse>(request, "refresh-token", false);
+
+            if (res?.Response != null)
+            {
+                await UpdateUserTokensAsync(user, res.Response.AccessToken, res.Response.RefreshToken);
+            }
+            
+            return new JsonResult(new { AccessToken = res?.Response?.AccessToken });
+        }
+        
         [BindProperty]
         public string IFrameUrl { get; set; }
-        
+
         async Task<int> CreateConnection(string title, string secretKey, string storeId)
         {
             var createModel = new ZgConnection
@@ -151,12 +202,8 @@ namespace CredentialPostTest.Pages
             string responseContent;
             using (var restClient = new HttpClient())
             {
-                using(var request = new HttpRequestMessage(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}"))
-                {
-                    var response = await GetResponseMessageAsync(request, restClient);
-
-                    responseContent = await response.Content.ReadAsStringAsync();
-                }
+                var response = await GetResponseMessageAsync(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}", null, restClient);
+                responseContent = await response.Content.ReadAsStringAsync();
             }
 
             var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResult>>(responseContent);
@@ -169,15 +216,10 @@ namespace CredentialPostTest.Pages
             string responseContent;
             using (var restClient = new HttpClient())
             {
-                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}api/v1/connections{endpoint}")
-                {
-                    Content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json")
-                })
-                {
-                    var response = await GetResponseMessageAsync(request, restClient);
+                var content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json");
+                var response = await GetResponseMessageAsync(HttpMethod.Post, $"{_zgApiUrl}api/v1/connections{endpoint}", content, restClient);
 
-                    responseContent = await response.Content.ReadAsStringAsync();
-                }
+                responseContent = await response.Content.ReadAsStringAsync();
             }
 
             var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResult>>(responseContent);
@@ -193,50 +235,55 @@ namespace CredentialPostTest.Pages
                 ClientSecret = _clientSecret,
             };
 
-            var response = await CallZwapstoreAsync<OneTimeCodeRequest, OneTimeCodeResponse>(otcRequest, "one-time-code");
+            var response = await CallZwapstoreAsync<OneTimeCodeRequest, OneTimeCodeResponse>(otcRequest, "one-time-code", true);
 
             return response?.OneTimeCode;
         }
 
+        private Task UpdateUserTokensAsync(ApplicationUser user, string accessToken, string refreshToken)
+        {
+            user.AccessToken = accessToken;
+            user.RefreshToken = refreshToken;
+            return _userManager.UpdateAsync(user);
+        }
+        
         private async Task Handle401Async()
         {
+            if (_user == null)
+            {
+                return;
+            }
+            
             // If no refresh token, clear access token and exit
             if (string.IsNullOrEmpty(_user.RefreshToken))
             {
                 _user.AccessToken = string.Empty;
                 return;
             }
-            else
+
+            var request = new RefreshTokenRequest
             {
-                var request = new RefreshTokenRequest
-                {
-                    ClientId = _clientId,
-                    ClientSecret = _clientSecret,
-                    RefreshToken = _user.RefreshToken
-                };
+                ClientId = _clientId,
+                ClientSecret = _clientSecret,
+                RefreshToken = _user.RefreshToken
+            };
                 
-                var response = await CallZwapstoreAsync<RefreshTokenRequest, RefreshTokenResponse>(request, "refresh-token");
-                _user.AccessToken = response?.AccessToken;
-                _user.RefreshToken = response?.RefreshToken;
-            }
+            var response = await CallZwapstoreAsync<RefreshTokenRequest, TokenResponse>(request, "refresh-token", false);
+            _user.AccessToken = response?.Response?.AccessToken;
+            _user.RefreshToken = response?.Response?.RefreshToken;
 
             await _userManager.UpdateAsync(_user);
         }
         
-        private async Task<TResponse> CallZwapstoreAsync<TRequest, TResponse>(TRequest requestModel, string endpoint) where TResponse: class
+        private async Task<TResponse> CallZwapstoreAsync<TRequest, TResponse>(TRequest requestModel, string endpoint, bool withAuthorization) where TResponse: class
         {
             string responseContent;
             using (var restClient = new HttpClient())
             {
-                using(var request = new HttpRequestMessage(HttpMethod.Post, $"{_zgApiUrl}api/zwapstore/{endpoint}")
-                {
-                    Content = new StringContent(JsonConvert.SerializeObject(requestModel), Encoding.UTF8, "application/json")
-                })
-                {
-                    var response = await GetResponseMessageAsync(request, restClient);
-
-                    responseContent = await response.Content.ReadAsStringAsync();
-                }
+                var content = new StringContent(JsonConvert.SerializeObject(requestModel), Encoding.UTF8, "application/json");
+                var response = await GetResponseMessageAsync(HttpMethod.Post, $"{_zgApiUrl}api/zwapstore/{endpoint}", content, restClient, withAuthorization);
+             
+                responseContent = await response.Content.ReadAsStringAsync();
             }
 
             var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResponse>>(responseContent);
@@ -246,7 +293,9 @@ namespace CredentialPostTest.Pages
         
         private void AddAuthorizationHeader(HttpRequestMessage request)
         {
-            if (!string.IsNullOrEmpty(_user.AccessToken))
+            request.Headers.Remove("Authorization");
+            
+            if (_user != null && !string.IsNullOrEmpty(_user.AccessToken))
             {
                 request.Headers.Add("Authorization", "Bearer " + _user.AccessToken);
             }
@@ -256,12 +305,26 @@ namespace CredentialPostTest.Pages
             }
         }
 
-        private async Task<HttpResponseMessage> GetResponseMessageAsync(HttpRequestMessage request, HttpClient client)
+        private async Task<HttpResponseMessage> GetResponseMessageAsync(HttpMethod method, string url, HttpContent content, HttpClient client, bool withAuthorization = true)
         {
-            AddAuthorizationHeader(request);
+            Task<HttpResponseMessage> SendAsync()
+            {
+                var request = new HttpRequestMessage(method, url);
+                if (content != null)
+                {
+                    request.Content = content;
+                }
+                
+                if (withAuthorization)
+                {
+                    AddAuthorizationHeader(request);
+                }
 
-            var response = await client.SendAsync(request);
+                return client.SendAsync(request);
+            }
 
+            var response = await SendAsync();
+            
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 await Handle401Async();
@@ -270,10 +333,8 @@ namespace CredentialPostTest.Pages
             {
                 return response;
             }
-            
-            AddAuthorizationHeader(request);
-            
-            response = await client.SendAsync(request);
+
+            response = await SendAsync();
 
             return response;
         }

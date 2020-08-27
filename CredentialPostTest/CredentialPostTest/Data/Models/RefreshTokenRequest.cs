@@ -1,11 +1,7 @@
 namespace CredentialPostTest.Data.Models
 {
-    internal class RefreshTokenRequest
+    internal class RefreshTokenRequest : ZwapstoreRequest
     {
-        public string ClientId { get; set; }
-
-        public string ClientSecret { get; set; }
-
         public string RefreshToken { get; set; }
     }
 }

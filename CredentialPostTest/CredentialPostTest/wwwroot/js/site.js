@@ -10,6 +10,29 @@ function bindEvent(element, eventName, eventHandler) {
     }
 }
 
+function sendToIframe(type, data){
+    let zsiFrame = document.getElementById('zsiFrame');
+    if(!zsiFrame){
+        return;
+    }
+
+    let message = {
+        type: type,
+        data: data
+    }
+    zsiFrame.contentWindow.postMessage(message, '*');
+}
+
+function callApi(method, url, callback){
+    $.ajax({
+        type: method,
+        url: url,
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+
+    }).done(callback)
+}
+
 bindEvent(window, 'message', function (e) {
     let message = JSON.parse(e.data);
     if (!message) {
@@ -17,8 +40,8 @@ bindEvent(window, 'message', function (e) {
     }
 
     // These arrays will be expanded in future with new message types and handlers
-    var messageTypes = ['integration.created'];
-    var handlers = [processIntegrationCreatedResult];
+    let messageTypes = ['integration.created', 'client.authenticated', 'client.accessTokenMissing'];
+    let handlers = [processIntegrationCreatedResult, processClientAuthenticatedMessage, processAccessTokenMissingMessage];
 
     if (messageTypes.indexOf(message.type) < 0){
         return;
@@ -35,9 +58,25 @@ function processIntegrationCreatedResult(systems) {
     }
     let sourceSystem = systems[0];
     let targetSystem = systems[1];
-    var message = document.getElementById('message');
+    let message = document.getElementById('message');
     if (message) {
         message.removeAttribute("hidden");
         message.innerHTML = 'Integration between <b>' + sourceSystem + '</b> and <b>' + targetSystem + '</b> was created successfully!';
     }
+}
+
+function processClientAuthenticatedMessage(authMessage){
+    let code = authMessage.authorizationCode;
+    callApi('GET', '/Index?handler=AccessToken&authCode=' + code, function(data){
+        let accToken = data.accessToken;
+        let otc = data.otc;
+        sendToIframe('accessToken', accToken);
+    })
+}
+
+function processAccessTokenMissingMessage(){
+    callApi('GET', '/Index?handler=RefreshAccessToken', function(data){
+        let accToken = data.accessToken;
+        sendToIframe('accessToken', accToken);
+    })
 }
