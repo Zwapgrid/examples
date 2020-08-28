@@ -84,18 +84,19 @@ namespace CredentialPostTest.Pages
             var hideSource = true.ToString();
 
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&clientId={_clientId}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
         }
 
         public async Task<IActionResult> OnGetAccessToken(string authCode)
         {
-            var request = new AccessTokenRequest
+            var request = new OauthRequest
             {
                 ClientId = _clientId,
                 ClientSecret = _clientSecret,
-                Code = authCode
+                Code = authCode,
+                GrantType = "authorization_code"
             };
-            var res = await CallZwapstoreAsync<AccessTokenRequest, TokenResponse>(request, "access-token", false);
+            var res = await Post<OauthRequest, OauthResponse>(request, "oauth", "token", false);
 
             var otcWithUser = string.Empty;
             if (res?.Response != null && User != null)
@@ -118,14 +119,15 @@ namespace CredentialPostTest.Pages
             }
             
             var user = await _userManager.GetUserAsync(User);
-            var request = new RefreshTokenRequest
+            var request = new OauthRequest
             {
                 ClientId = _clientId,
                 ClientSecret = _clientSecret,
-                RefreshToken = user.RefreshToken
+                RefreshToken = user.RefreshToken,
+                GrantType = "refresh_token"
             };
             
-            var res = await CallZwapstoreAsync<RefreshTokenRequest, TokenResponse>(request, "refresh-token", false);
+            var res = await Post<OauthRequest, OauthResponse>(request, "oauth", "token", false);
 
             if (res?.Response != null)
             {
@@ -150,12 +152,12 @@ namespace CredentialPostTest.Pages
                 }
             };
 
-            var connectionResult = await Post<ZgConnection, ZgConnection>(createModel, "");
+            var connectionResult = await Post<ZgConnection, ZgConnection>(createModel, "connections", "");
 
             if(string.IsNullOrEmpty(connectionResult.Id))
                 throw new Exception("Something went wrong");
             
-            var validateConnectionResult = await Post<ZgConnection, ZgValidatePostResult>(connectionResult,"/validate");
+            var validateConnectionResult = await Post<ZgConnection, ZgValidatePostResult>(connectionResult, "connections", "validate");
 
             if (validateConnectionResult.Success)
             {
@@ -211,13 +213,13 @@ namespace CredentialPostTest.Pages
             return responseObject.Result;
         }
         
-        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint)
+        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint, string action, bool withAuthorization = true)
         {
             string responseContent;
             using (var restClient = new HttpClient())
             {
                 var content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json");
-                var response = await GetResponseMessageAsync(HttpMethod.Post, $"{_zgApiUrl}api/v1/connections{endpoint}", content, restClient);
+                var response = await GetResponseMessageAsync(HttpMethod.Post, $"{_zgApiUrl}api/v1/{endpoint}/{action}", content, restClient, withAuthorization);
 
                 responseContent = await response.Content.ReadAsStringAsync();
             }
@@ -235,7 +237,7 @@ namespace CredentialPostTest.Pages
                 ClientSecret = _clientSecret,
             };
 
-            var response = await CallZwapstoreAsync<OneTimeCodeRequest, OneTimeCodeResponse>(otcRequest, "one-time-code", true);
+            var response = await Post<OneTimeCodeRequest, OneTimeCodeResponse>(otcRequest, "oauth","one-time-code");
 
             return response?.OneTimeCode;
         }
@@ -261,36 +263,21 @@ namespace CredentialPostTest.Pages
                 return;
             }
 
-            var request = new RefreshTokenRequest
+            var request = new OauthRequest
             {
                 ClientId = _clientId,
                 ClientSecret = _clientSecret,
-                RefreshToken = _user.RefreshToken
+                RefreshToken = _user.RefreshToken,
+                GrantType = "refresh_token"
             };
                 
-            var response = await CallZwapstoreAsync<RefreshTokenRequest, TokenResponse>(request, "refresh-token", false);
+            var response = await Post<OauthRequest, OauthResponse>(request, "oauth", "token", false);
             _user.AccessToken = response?.Response?.AccessToken;
             _user.RefreshToken = response?.Response?.RefreshToken;
 
             await _userManager.UpdateAsync(_user);
         }
-        
-        private async Task<TResponse> CallZwapstoreAsync<TRequest, TResponse>(TRequest requestModel, string endpoint, bool withAuthorization) where TResponse: class
-        {
-            string responseContent;
-            using (var restClient = new HttpClient())
-            {
-                var content = new StringContent(JsonConvert.SerializeObject(requestModel), Encoding.UTF8, "application/json");
-                var response = await GetResponseMessageAsync(HttpMethod.Post, $"{_zgApiUrl}api/zwapstore/{endpoint}", content, restClient, withAuthorization);
-             
-                responseContent = await response.Content.ReadAsStringAsync();
-            }
 
-            var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResponse>>(responseContent);
-
-            return responseObject?.Result;
-        }
-        
         private void AddAuthorizationHeader(HttpRequestMessage request)
         {
             request.Headers.Remove("Authorization");

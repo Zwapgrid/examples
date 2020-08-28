@@ -34,6 +34,16 @@ function callApi(method, url, callback){
 }
 
 bindEvent(window, 'message', function (e) {
+    let zsiFrame = document.getElementById('zsiFrame');
+    if(!zsiFrame){
+        return;
+    }
+    
+    let validOrigin =  new URL(zsiFrame.attributes['src'].value).origin;
+    if(e.origin.includes(validOrigin)){
+        return;
+    }
+    
     let message = JSON.parse(e.data);
     if (!message) {
         return;
