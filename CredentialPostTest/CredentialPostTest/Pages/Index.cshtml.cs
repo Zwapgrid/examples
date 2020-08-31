@@ -71,7 +71,7 @@ namespace CredentialPostTest.Pages
             if (!_user.ZgConnectionId.HasValue)
             {
                 //Create connection and store connectionId
-                var connectionId = await CreateConnection(_user.CompanyName, {userSecretKey}, {userStoreId});
+                var connectionId = await CreateConnection(_user.CompanyName, "", "");
                 
                 _user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(_user);
@@ -84,31 +84,31 @@ namespace CredentialPostTest.Pages
             var hideSource = true.ToString();
 
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&clientId={_clientId}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&clientId={_clientId}";//&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
         }
 
         public async Task<IActionResult> OnGetAccessToken(string authCode)
         {
-            var request = new OauthRequest
+            var request = new Oauth2Request
             {
                 ClientId = _clientId,
                 ClientSecret = _clientSecret,
                 Code = authCode,
                 GrantType = "authorization_code"
             };
-            var res = await Post<OauthRequest, OauthResponse>(request, "oauth", "token", false);
+            var result = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token", false);
 
             var otcWithUser = string.Empty;
-            if (res?.Response != null && User != null)
+            if (result?.Response != null && User != null)
             {
                 var user = await _userManager.GetUserAsync(User);
-                await UpdateUserTokensAsync(user, res.Response.AccessToken, res.Response.RefreshToken);
+                await UpdateUserTokensAsync(user, result.Response.AccessToken, result.Response.RefreshToken);
 
-                //Check whether we still need thi guy
+                //ToDo: Check whether we still need thi guy
                 otcWithUser = await GetOneTimeCodeAsync();
             }
 
-            return new JsonResult(new { AccessToken = res?.Response?.AccessToken, Otc = otcWithUser });
+            return new JsonResult(new { AccessToken = result?.Response?.AccessToken, Otc = otcWithUser });
         }
 
         public async Task<IActionResult> OnGetRefreshAccessToken()
@@ -119,7 +119,7 @@ namespace CredentialPostTest.Pages
             }
             
             var user = await _userManager.GetUserAsync(User);
-            var request = new OauthRequest
+            var request = new Oauth2Request
             {
                 ClientId = _clientId,
                 ClientSecret = _clientSecret,
@@ -127,14 +127,14 @@ namespace CredentialPostTest.Pages
                 GrantType = "refresh_token"
             };
             
-            var res = await Post<OauthRequest, OauthResponse>(request, "oauth", "token", false);
+            var result = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token", false);
 
-            if (res?.Response != null)
+            if (result?.Response != null)
             {
-                await UpdateUserTokensAsync(user, res.Response.AccessToken, res.Response.RefreshToken);
+                await UpdateUserTokensAsync(user, result.Response.AccessToken, result.Response.RefreshToken);
             }
             
-            return new JsonResult(new { AccessToken = res?.Response?.AccessToken });
+            return new JsonResult(new { AccessToken = result?.Response?.AccessToken });
         }
         
         [BindProperty]
@@ -237,7 +237,7 @@ namespace CredentialPostTest.Pages
                 ClientSecret = _clientSecret,
             };
 
-            var response = await Post<OneTimeCodeRequest, OneTimeCodeResponse>(otcRequest, "oauth","one-time-code");
+            var response = await Post<OneTimeCodeRequest, OneTimeCodeResponse>(otcRequest, "oauth2","one-time-code");
 
             return response?.OneTimeCode;
         }
@@ -263,7 +263,7 @@ namespace CredentialPostTest.Pages
                 return;
             }
 
-            var request = new OauthRequest
+            var request = new Oauth2Request
             {
                 ClientId = _clientId,
                 ClientSecret = _clientSecret,
@@ -271,7 +271,7 @@ namespace CredentialPostTest.Pages
                 GrantType = "refresh_token"
             };
                 
-            var response = await Post<OauthRequest, OauthResponse>(request, "oauth", "token", false);
+            var response = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token", false);
             _user.AccessToken = response?.Response?.AccessToken;
             _user.RefreshToken = response?.Response?.RefreshToken;
 

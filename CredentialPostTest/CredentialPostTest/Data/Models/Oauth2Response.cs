@@ -1,6 +1,6 @@
 namespace CredentialPostTest.Data.Models
 {
-    internal class OauthResponse
+    internal class Oauth2Response
     {
         public Response Response { get; set; }
     }
