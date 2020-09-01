@@ -10,6 +10,7 @@ function bindEvent(element, eventName, eventHandler) {
     }
 }
 
+//send a message to iframe
 function sendToIframe(type, data){
     let zsiFrame = document.getElementById('zsiFrame');
     if(!zsiFrame){
@@ -39,6 +40,7 @@ bindEvent(window, 'message', function (e) {
         return;
     }
     
+    //checking if message came from iframe with a valid host
     let validHost =  new URL(zsiFrame.attributes['src'].value).host;
     if(!(new URL(e.origin)).host.includes(validHost)){
         return;
@@ -62,6 +64,9 @@ bindEvent(window, 'message', function (e) {
 });
 
 // Message handlers go here
+
+//Processing integration created message
+//currently it simply shows a box system names 
 function processIntegrationCreatedResult(systems) {
     if (!systems || systems.length != 2) {
         return;
@@ -75,6 +80,8 @@ function processIntegrationCreatedResult(systems) {
     }
 }
 
+//processing client authenticated message
+//getting access token, using received authorization code and our clientId and clientSecret
 function processClientAuthenticatedMessage(authMessage){
     let code = authMessage.authorizationCode;
     callApi('GET', '/Index?handler=AccessToken&authCode=' + code, function(data){
@@ -84,6 +91,8 @@ function processClientAuthenticatedMessage(authMessage){
     })
 }
 
+//processing access token message
+//getting access token, using active user's refresh token
 function processAccessTokenMissingMessage(){
     callApi('GET', '/Index?handler=RefreshAccessToken', function(data){
         let accToken = data.accessToken;

@@ -64,7 +64,8 @@ namespace CredentialPostTest.Pages
                 throw new Exception("User does not exist");
             }
 
-            //Fetch one time code, using client id and secret
+            //Fetch one time code (OTC), using client id and secret
+            //OTC is used to handle authentication when access token is missing in zwapstore
             _otc = await GetOneTimeCodeAsync();
             
             //Check if user already have an active connection
@@ -87,6 +88,7 @@ namespace CredentialPostTest.Pages
             IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&clientId={_clientId}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
         }
 
+        //Get access token using auth code, sent from iframe
         public async Task<IActionResult> OnGetAccessToken(string authCode)
         {
             var request = new Oauth2Request
@@ -111,6 +113,7 @@ namespace CredentialPostTest.Pages
             return new JsonResult(new { AccessToken = result?.Response?.AccessToken, Otc = otcWithUser });
         }
 
+        //Get access token using refresh token, stored for currently logged in user
         public async Task<IActionResult> OnGetRefreshAccessToken()
         {
             if (User == null)
@@ -131,6 +134,7 @@ namespace CredentialPostTest.Pages
 
             if (result?.Response != null)
             {
+                //Updating user tokens here, since refresh token is valid only for 1 request
                 await UpdateUserTokensAsync(user, result.Response.AccessToken, result.Response.RefreshToken);
             }
             
