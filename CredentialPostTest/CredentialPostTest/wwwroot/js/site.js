@@ -39,8 +39,8 @@ bindEvent(window, 'message', function (e) {
         return;
     }
     
-    let validOrigin =  new URL(zsiFrame.attributes['src'].value).origin;
-    if(e.origin.includes(validOrigin)){
+    let validHost =  new URL(zsiFrame.attributes['src'].value).host;
+    if(!(new URL(e.origin)).host.includes(validHost)){
         return;
     }
     
