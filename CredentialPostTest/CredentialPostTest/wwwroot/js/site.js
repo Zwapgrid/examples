@@ -85,9 +85,7 @@ function processIntegrationCreatedResult(systems) {
 function processClientAuthenticatedMessage(authMessage){
     let code = authMessage.authorizationCode;
     callApi('GET', '/Index?handler=AccessToken&authCode=' + code, function(data){
-        let accToken = data.accessToken;
-        let otc = data.otc;
-        sendToIframe('accessToken', accToken);
+        sendToIframe('accessToken', data.accessToken);
     })
 }
 

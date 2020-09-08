@@ -100,17 +100,13 @@ namespace CredentialPostTest.Pages
             };
             var result = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token", false);
 
-            var otcWithUser = string.Empty;
             if (result?.Response != null && User != null)
             {
                 var user = await _userManager.GetUserAsync(User);
                 await UpdateUserTokensAsync(user, result.Response.AccessToken, result.Response.RefreshToken);
-
-                //ToDo: Check whether we still need thi guy
-                otcWithUser = await GetOneTimeCodeAsync();
             }
 
-            return new JsonResult(new { AccessToken = result?.Response?.AccessToken, Otc = otcWithUser });
+            return new JsonResult(new { AccessToken = result?.Response?.AccessToken });
         }
 
         //Get access token using refresh token, stored for currently logged in user
