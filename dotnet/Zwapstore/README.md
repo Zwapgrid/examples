@@ -7,7 +7,7 @@ Most of relevant code is contained in Index.cshtml.cs.
 ### Zwapstore prerequisites
 Zwapgrid is built on tenants that contain users, the using service needs some abstraction of these concepts.
 
-For Zwapgrid to be able to connect to an external service, a connection containing credentials is needed. These connections are different depending on the Zwapgrid should connect to.
+For Zwapgrid to be able to connect to an external service, a connection containing credentials is needed. These connections are different depending on the system Zwapgrid should connect to.
 
 Authentication is based on Oauth2, but has been extended to be secure even though information sometimes needs to be passed in plain text.
 
