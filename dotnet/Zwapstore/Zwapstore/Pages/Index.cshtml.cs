@@ -84,7 +84,7 @@ namespace Zwapstore.Pages
             var hideSource = true.ToString();
 
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&clientId={_clientId}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
         }
 
         //Get access token using auth code, sent from iframe
@@ -181,7 +181,9 @@ namespace Zwapstore.Pages
 
         private async Task<RSAParameters> GetRsaParameters()
         {
-            var publicKey = await Get<string>("/me/public-key");
+            // We must get public key for Partner tenant only.
+            // Since OTC is generated for partner tenant (the one, who owns Oauth2 Client), we should authorize using OTC here
+            var publicKey = await Get<string>("/me/public-key", true, true);
             
             var utf8Mark = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
 
@@ -198,12 +200,12 @@ namespace Zwapstore.Pages
             throw new Exception("Something went wrong");
         }
 
-        private async Task<TResult> Get<TResult>(string endpoint) where TResult : class
+        private async Task<TResult> Get<TResult>(string endpoint, bool withAuthorization, bool otcOnly) where TResult : class
         {
             string responseContent;
             using (var restClient = new HttpClient())
             {
-                var response = await GetResponseMessageAsync(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}", null, restClient);
+                var response = await GetResponseMessageAsync(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}", null, restClient, withAuthorization, otcOnly);
                 responseContent = await response.Content.ReadAsStringAsync();
             }
 
@@ -277,11 +279,11 @@ namespace Zwapstore.Pages
             await _userManager.UpdateAsync(_user);
         }
 
-        private void AddAuthorizationHeader(HttpRequestMessage request)
+        private void AddAuthorizationHeader(HttpRequestMessage request, bool otcOnly = false)
         {
             request.Headers.Remove("Authorization");
             
-            if (_user != null && !string.IsNullOrEmpty(_user.AccessToken))
+            if (!otcOnly && _user != null && !string.IsNullOrEmpty(_user.AccessToken))
             {
                 request.Headers.Add("Authorization", "Bearer " + _user.AccessToken);
             }
@@ -291,7 +293,7 @@ namespace Zwapstore.Pages
             }
         }
 
-        private async Task<HttpResponseMessage> GetResponseMessageAsync(HttpMethod method, string url, HttpContent content, HttpClient client, bool withAuthorization = true)
+        private async Task<HttpResponseMessage> GetResponseMessageAsync(HttpMethod method, string url, HttpContent content, HttpClient client, bool withAuthorization = true, bool otcOnly = false)
         {
             Task<HttpResponseMessage> SendAsync()
             {
@@ -303,7 +305,7 @@ namespace Zwapstore.Pages
                 
                 if (withAuthorization)
                 {
-                    AddAuthorizationHeader(request);
+                    AddAuthorizationHeader(request, otcOnly);
                 }
 
                 return client.SendAsync(request);
