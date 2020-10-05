@@ -14,6 +14,10 @@ namespace Zwapstore.Data.Models
         [JsonProperty("id")]
         public string Id { get; set; }
         
+        [JsonProperty("orgNo")]
+
+        public string OrgNo { get; set; }
+        
         // Use the connection type for your system
         [JsonProperty("invoiceOnline")]
         public InvoiceOnlineConnection InvoiceOnlineConnection { get; set; }
