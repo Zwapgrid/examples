@@ -67,11 +67,11 @@ namespace Zwapstore.Pages
             //OTC is used to handle authentication when access token is missing in Zwapstore
             _otc = await GetOneTimeCodeAsync();
             
-            //Check if user already have an active connection
+            //Check if user already has an active connection
             if (!_user.ZgConnectionId.HasValue)
             {
                 //Create connection and store connectionId
-                var connectionId = await CreateConnection(_user.CompanyName, _user.CompanyOrgNo, "", "");
+                var connectionId = await CreateConnection(_user.CompanyName, _user.CompanyOrgNo, {secretKey}, {storeId});
                 
                 _user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(_user);
