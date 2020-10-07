@@ -67,24 +67,21 @@ namespace Zwapstore.Pages
             //OTC is used to handle authentication when access token is missing in Zwapstore
             _otc = await GetOneTimeCodeAsync();
             
-            //Check if user already have an active connection
+            //Check if user already has an active connection
             if (!_user.ZgConnectionId.HasValue)
             {
                 //Create connection and store connectionId
-                var connectionId = await CreateConnection(_user.CompanyName, "", "");
+                var connectionId = await CreateConnection(_user.CompanyName, _user.CompanyOrgNo, {secretKey}, {storeId});
                 
                 _user.ZgConnectionId = connectionId;
                 await _userManager.UpdateAsync(_user);
             }
 
-            //Encrypt connectionId for usage in query
-            var encryptedConnectionId = await GetCalculatedId(_user.ZgConnectionId.Value);
-
             //Add hide source to hide the connection in the view, this is recommended to give a better experience for user
             var hideSource = true.ToString();
 
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&clientId={_clientId}&sourceConnectionId={encryptedConnectionId}&source={sourceSystem}&hideSource={hideSource}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&clientId={_clientId}&sourceConnectionId={_user.ZgConnectionId.Value}&source={sourceSystem}&hideSource={hideSource}";
         }
 
         //Get access token using auth code, sent from iframe
@@ -139,11 +136,12 @@ namespace Zwapstore.Pages
         [BindProperty]
         public string IFrameUrl { get; set; }
 
-        async Task<int> CreateConnection(string title, string secretKey, string storeId)
+        async Task<int> CreateConnection(string title, string orgNo, string secretKey, string storeId)
         {
             var createModel = new ZgConnection
             {
                 Title = title,
+                OrgNo = orgNo,
                 InvoiceOnlineConnection = new InvoiceOnlineConnection
                 {
                     SecretKey = secretKey,
@@ -166,44 +164,12 @@ namespace Zwapstore.Pages
             throw new Exception(validateConnectionResult.Message);
         }
 
-        private const int PublicKeySize = 4096;
-        private async Task<string> GetCalculatedId(int connectionId)
-        {
-            var rsaParameters = await GetRsaParameters();
-            
-            var toEncrypt = $"{connectionId}||{_otc}";
-
-            using var cryptoServiceProvider = new RSACryptoServiceProvider(PublicKeySize);
-            cryptoServiceProvider.ImportParameters(rsaParameters);
-            var encryptedBytes = cryptoServiceProvider.Encrypt(Encoding.UTF8.GetBytes(toEncrypt), false);
-            return Base64UrlEncoder.Encode(encryptedBytes);
-        }
-
-        private async Task<RSAParameters> GetRsaParameters()
-        {
-            var publicKey = await Get<string>("/me/public-key");
-            
-            var utf8Mark = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
-
-            if (publicKey.StartsWith(utf8Mark, StringComparison.Ordinal))
-                publicKey = publicKey.Remove(0, utf8Mark.Length);
-
-            using var reader = new StringReader(publicKey);
-            var pemObject = new PemReader(reader).ReadObject();
-            if (pemObject is RsaKeyParameters parameters)
-            {
-                return DotNetUtilities.ToRSAParameters(parameters);
-            }
-            
-            throw new Exception("Something went wrong");
-        }
-
-        private async Task<TResult> Get<TResult>(string endpoint) where TResult : class
+        private async Task<TResult> Get<TResult>(string endpoint, bool withAuthorization) where TResult : class
         {
             string responseContent;
             using (var restClient = new HttpClient())
             {
-                var response = await GetResponseMessageAsync(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}", null, restClient);
+                var response = await GetResponseMessageAsync(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}", null, restClient, withAuthorization);
                 responseContent = await response.Content.ReadAsStringAsync();
             }
 
