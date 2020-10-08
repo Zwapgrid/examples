@@ -1,8 +1,6 @@
 ﻿using System;
-using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
@@ -11,12 +9,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.OpenSsl;
-using Org.BouncyCastle.Security;
 using Zwapstore.Data;
 using Zwapstore.Data.Models;
-using Zwapstore.Utilities;
 
 namespace Zwapstore.Pages
 {
@@ -81,7 +75,7 @@ namespace Zwapstore.Pages
             var hideSource = true.ToString();
 
             //Place user info in query
-            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&clientId={_clientId}&sourceConnectionId={_user.ZgConnectionId.Value}&source={sourceSystem}&hideSource={hideSource}";
+            IFrameUrl = $"{_zgAppUrl}zwapstore?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&sourceConnectionId={_user.ZgConnectionId.Value}&source={sourceSystem}&hideSource={hideSource}";
         }
 
         //Get access token using auth code, sent from iframe
@@ -94,7 +88,7 @@ namespace Zwapstore.Pages
                 Code = authCode,
                 GrantType = "authorization_code"
             };
-            var result = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token", false);
+            var result = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token");
 
             if (result?.Response != null && User != null)
             {
@@ -122,7 +116,7 @@ namespace Zwapstore.Pages
                 GrantType = "refresh_token"
             };
             
-            var result = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token", false);
+            var result = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token");
 
             if (result?.Response != null)
             {
@@ -163,28 +157,14 @@ namespace Zwapstore.Pages
 
             throw new Exception(validateConnectionResult.Message);
         }
-
-        private async Task<TResult> Get<TResult>(string endpoint, bool withAuthorization) where TResult : class
-        {
-            string responseContent;
-            using (var restClient = new HttpClient())
-            {
-                var response = await GetResponseMessageAsync(HttpMethod.Get, $"{_zgApiUrl}api/v1{endpoint}", null, restClient, withAuthorization);
-                responseContent = await response.Content.ReadAsStringAsync();
-            }
-
-            var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResult>>(responseContent);
-            
-            return responseObject.Result;
-        }
         
-        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint, string action, bool withAuthorization = true)
+        private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint, string action)
         {
             string responseContent;
             using (var restClient = new HttpClient())
             {
                 var content = new StringContent(JsonConvert.SerializeObject(input), Encoding.UTF8, "application/json");
-                var response = await GetResponseMessageAsync(HttpMethod.Post, $"{_zgApiUrl}api/v1/{endpoint}/{action}", content, restClient, withAuthorization);
+                var response = await GetResponseMessageAsync(HttpMethod.Post, $"{_zgApiUrl}api/v1/{endpoint}/{action}", content, restClient);
 
                 responseContent = await response.Content.ReadAsStringAsync();
             }
@@ -236,28 +216,14 @@ namespace Zwapstore.Pages
                 GrantType = "refresh_token"
             };
                 
-            var response = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token", false);
+            var response = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token");
             _user.AccessToken = response?.Response?.AccessToken;
             _user.RefreshToken = response?.Response?.RefreshToken;
 
             await _userManager.UpdateAsync(_user);
         }
 
-        private void AddAuthorizationHeader(HttpRequestMessage request)
-        {
-            request.Headers.Remove("Authorization");
-            
-            if (_user != null && !string.IsNullOrEmpty(_user.AccessToken))
-            {
-                request.Headers.Add("Authorization", "Bearer " + _user.AccessToken);
-            }
-            else if (!string.IsNullOrEmpty(_otc))
-            {
-                request.Headers.Add("Authorization", "OneTimeCode " + _otc);
-            }
-        }
-
-        private async Task<HttpResponseMessage> GetResponseMessageAsync(HttpMethod method, string url, HttpContent content, HttpClient client, bool withAuthorization = true)
+        private async Task<HttpResponseMessage> GetResponseMessageAsync(HttpMethod method, string url, HttpContent content, HttpClient client)
         {
             Task<HttpResponseMessage> SendAsync()
             {
@@ -267,10 +233,7 @@ namespace Zwapstore.Pages
                     request.Content = content;
                 }
                 
-                if (withAuthorization)
-                {
-                    AddAuthorizationHeader(request);
-                }
+                AddAuthorizationHeader(request);
 
                 return client.SendAsync(request);
             }
@@ -289,6 +252,20 @@ namespace Zwapstore.Pages
             response = await SendAsync();
 
             return response;
+        }
+
+        private void AddAuthorizationHeader(HttpRequestMessage request)
+        {
+            request.Headers.Remove("Authorization");
+            
+            if (_user != null && !string.IsNullOrEmpty(_user.AccessToken))
+            {
+                request.Headers.Add("Authorization", "Bearer " + _user.AccessToken);
+            }
+            else if (!string.IsNullOrEmpty(_otc))
+            {
+                request.Headers.Add("Authorization", "OneTimeCode " + _otc);
+            }
         }
     }
 }
