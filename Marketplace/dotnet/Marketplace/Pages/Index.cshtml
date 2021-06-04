@@ -1,0 +1,15 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Integrations!</h1>
+    @if (User.Identity.IsAuthenticated)
+    {
+        <iframe id="zsiFrame" src="@(Model.IFrameUrl)" height="700px" width="1200px" style="border: 0;"></iframe>
+    }
+    <div id="message" class="integration-created-block" hidden>
+    </div>
+</div>
