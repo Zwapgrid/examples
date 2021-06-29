@@ -38,7 +38,7 @@ When Marketplace should be embedded in a service, these steps should be taken:
  - `target`, `targetConnectionId` and `hideTarget` (Optional): The same as for source, these can be used to set/configure specific target system as well.
  Example embedding code: 
  ```
-<iframe src="https://app.zwapgrid.com/marketplace?otc={token}&clientId={yourClientId}&orgNo=123456-1234&name=Zwapgrid AB&email=user@zwapgrid.com&sourceConnectionId={encryptedConnectionId}&source={yourSystemKey}&hideSource=True" height="600px" width="100%" style="border: 0;">
+<iframe src="https://app.zwapgrid.com/marketplace?otc={token}&clientId={yourClientId}&orgno=123456-1234&name=Zwapgrid AB&email=user@zwapgrid.com&sourceConnectionId={encryptedConnectionId}&source={yourSystemKey}&hideSource=True" height="600px" width="100%" style="border: 0;">
 </iframe>
 ```
  
