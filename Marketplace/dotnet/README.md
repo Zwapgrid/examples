@@ -30,9 +30,11 @@ When Marketplace should be embedded in a service, these steps should be taken:
  - `name` (Required on first use of orgNo): The name of the users company. Will become the name of the company in Zwapgrid.
  - `email` (Required on first use of orgNo): An email to the user. Will become contact email of the created user in Zwapgrid. The user will **NOT** receive any notification about this.
  - `tenancyName` (Optinal, but recommended on first use of orgNo): Zwapgrid id of the users company. This will become the sub-domain of the Zwapgrid account, i.e. passing `zwapgrid-ab` will create a Zwapgrid account at `zwapgrid-ab.zwapgrid.com`. Subdomain formatting rules therefore apply. Recommended to use email domain if corporate or url-safe company name. If omitted will use url-safe company name.
- - `sourceConnectionId` (Optional but recommended, required if hideSource is true): The encrypted connection id. If omitted, the user will have to enter their own credentials.
+ - `sourceConnectionId` (Optional but recommended, required if hideSource is true): The connection id. If omitted, the user will have to enter their own credentials.
+ - `source.connection.{parameter}` (Optional) Could be used to send credentials in plain text.
  - `source` (Optional but recommended, required if hideSource is true): The system key for the source system. Generally your system key. If omitted, the user will have to select the source system.
  - `hideSource` (Optional but recommended): If sourceConnectionId and source is set, the user don't have to make any options, so the source can be hidden. Recommended to make the Marketplace feel more integrated into your service.
+ -  `output.connection.{parameter}` (Optional) Could be used to send credentials in plain text.
  - `target`, `targetConnectionId` and `hideTarget` (Optional): The same as for source, these can be used to set/configure specific target system as well.
  Example embedding code: 
  ```
