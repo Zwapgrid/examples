@@ -25,7 +25,6 @@ When Marketplace should be embedded in a service, these steps should be taken:
 3. Encrypt connection id together with the one-time code by using your public key from `api/v1/me/public-key`.
 4. Concatenate and embed URL for zwapstore by base URL 'https://app.zwapgrid.com/zwapstore' and adding query parameters as follows:
  - `otc` (Required): The one-time code.
- - `clientId` (Required): Your clientId.
  - `orgno` (Required): Organization number of the users company.
  - `name` (Required on first use of orgNo): The name of the users company. Will become the name of the company in Zwapgrid.
  - `email` (Required on first use of orgNo): An email to the user. Will become contact email of the created user in Zwapgrid. The user will **NOT** receive any notification about this.
