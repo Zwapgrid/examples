@@ -26,7 +26,7 @@ When Marketplace should be embedded in a service, these steps should be taken:
 4. Concatenate and embed URL for zwapstore by base URL 'https://app.zwapgrid.com/zwapstore' and adding query parameters as follows:
  - `otc` (Required): The one-time code.
  - `clientId` (Required): Your clientId.
- - `orgNo` (Required): Organization number of the users company.
+ - `orgno` (Required): Organization number of the users company.
  - `name` (Required on first use of orgNo): The name of the users company. Will become the name of the company in Zwapgrid.
  - `email` (Required on first use of orgNo): An email to the user. Will become contact email of the created user in Zwapgrid. The user will **NOT** receive any notification about this.
  - `tenancyName` (Optinal, but recommended on first use of orgNo): Zwapgrid id of the users company. This will become the sub-domain of the Zwapgrid account, i.e. passing `zwapgrid-ab` will create a Zwapgrid account at `zwapgrid-ab.zwapgrid.com`. Subdomain formatting rules therefore apply. Recommended to use email domain if corporate or url-safe company name. If omitted will use url-safe company name.
