@@ -60,16 +60,16 @@ namespace Marketplace.Areas.Identity.Pages.Account
             [Display(Name = "Confirm password")]
             [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
             public string ConfirmPassword { get; set; }
-            
+
             [Required]
             [DataType(DataType.Text)]
             [Display(Name = "CompanyName")]
             public string CompanyName { get; set; }
-            
+
             [Required]
             [DataType(DataType.Text)]
-            [Display(Name = "CompanyOrgNo")]
-            public string CompanyOrgNo { get; set; }
+            [Display(Name = "CompanyId")]
+            public string CompanyId { get; set; }
         }
 
         public async Task OnGetAsync(string returnUrl = null)
@@ -86,10 +86,10 @@ namespace Marketplace.Areas.Identity.Pages.Account
             {
                 var user = new ApplicationUser
                 {
-                    UserName = Input.Email, 
+                    UserName = Input.Email,
                     Email = Input.Email,
                     CompanyName = Input.CompanyName,
-                    CompanyOrgNo = Input.CompanyOrgNo
+                    CompanyId = Input.CompanyId
                 };
                 var result = await _userManager.CreateAsync(user, Input.Password);
                 if (result.Succeeded)

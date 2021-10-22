@@ -16,10 +16,10 @@ namespace Marketplace.Data
     {
         public string CompanyName { get; set; }
 
-        public string CompanyOrgNo { get; set; }
-        
+        public string CompanyId { get; set; }
+
         public int? ZgConnectionId { get; set; }
-        
+
         public string ZgPublicKey { get; set; }
 
         public string AccessToken { get; set; }
