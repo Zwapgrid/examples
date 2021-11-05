@@ -8,7 +8,9 @@
     <h1 class="display-4">Integrations!</h1>
     @if (User.Identity.IsAuthenticated)
     {
-        <iframe id="zsiFrame" src="@(Model.IFrameUrl)" height="700px" width="1200px" style="border: 0;"></iframe>
+        <div class="embed-responsive embed-responsive-16by9">
+            <iframe class="embed-responsive-item" id="zsiFrame" src="@(Model.IFrameUrl)" style="border: 0;"></iframe>
+        </div>
     }
     <div id="message" class="integration-created-block" hidden>
     </div>
