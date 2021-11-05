@@ -35,7 +35,7 @@ When Marketplace should be embedded in a service, these steps should be taken:
  - `hideSource` (Optional but recommended): If sourceConnectionId and source is set, the user don't have to make any options, so the source can be hidden. Recommended to make the Marketplace feel more integrated into your service.
  -  `output.connection.{parameter}` (Optional) Could be used to send the target credentials in plain text.
  - `target`, `targetConnectionId` and `hideTarget` (Optional): The same as for source, these can be used to set/configure specific target system as well.
- - 'lang' (Optional, default is English): The UI language for this logged in user. The language should be supported in your system languages list (Zwapgrid -> Administration -> Languages -> Language Code). Examples: en, sv, de
+ - `lang` (Optional, default is English): The UI language for this logged in user. The language should be supported in your system languages list (Zwapgrid -> Administration -> Languages -> Language Code). Examples: en, sv, de
  Example embedding code: 
  ```
 <iframe src="https://app.zwapgrid.com/marketplace?otc={token}&clientId={yourClientId}&orgno=123456-1234&name=Zwapgrid AB&email=user@zwapgrid.com&sourceConnectionId={encryptedConnectionId}&source={yourSystemKey}&hideSource=True" height="600px" width="100%" style="border: 0;">
