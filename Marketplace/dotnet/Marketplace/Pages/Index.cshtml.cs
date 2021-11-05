@@ -84,7 +84,16 @@ namespace Marketplace.Pages
             var hideSource = true.ToString();
 
             // Build url from user info and credentials
-            IFrameUrl = $"{_zgAppUrl}marketplace?otc={_otc}&name={_user.CompanyName}&companyId={_user.CompanyId}&email={_user.Email}&tenancyName={_user.CompanyName}&export.connectionId={_user.ZgConnectionId.Value}&source={sourceSystem}&hideSource={hideSource}";
+            IFrameUrl = $"{_zgAppUrl}marketplace?" +
+                $"otc={_otc}" +
+                $"&name={_user.CompanyName}" +
+                $"&companyId={_user.CompanyId}" +
+                $"&email={_user.Email}" +
+                $"&tenancyName={_user.CompanyName}" +
+                $"&export.connectionId={_user.ZgConnectionId.Value}" +
+                $"&source={sourceSystem}" +
+                $"&hideSource={hideSource}" +
+                $"&lang=se"; // examples: 'en', 'sv'
         }
 
         // When an account has been created or the user has authorized you to access their account, a JS event will
