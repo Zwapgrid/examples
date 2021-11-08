@@ -25,10 +25,10 @@ When Marketplace should be embedded in a service, these steps should be taken:
 3. Encrypt connection id together with the one-time code by using your public key from `api/v1/me/public-key`.
 4. Concatenate and embed URL for zwapstore by base URL 'https://app.zwapgrid.com/zwapstore' and adding query parameters as follows:
  - `otc` (Required): The one-time code.
- - `orgno` (Required): Organization number of the users company.
- - `name` (Required on first use of orgNo): The name of the users company. Will become the name of the company in Zwapgrid.
- - `email` (Required on first use of orgNo): An email to the user. Will become contact email of the created user in Zwapgrid. The user will **NOT** receive any notification about this.
- - `tenancyName` (Optinal, but recommended on first use of orgNo): Zwapgrid id of the users company. This will become the sub-domain of the Zwapgrid account, i.e. passing `zwapgrid-ab` will create a Zwapgrid account at `zwapgrid-ab.zwapgrid.com`. Subdomain formatting rules therefore apply. Recommended to use email domain if corporate or url-safe company name. If omitted will use url-safe company name.
+ - `companyId` (Required): Company identifier of the users company (Organization number in case of Swedish company).
+ - `name` (Required on first use of companyId): The name of the users company. Will become the name of the company in Zwapgrid.
+ - `email` (Required on first use of companyId): An email to the user. Will become contact email of the created user in Zwapgrid. The user will **NOT** receive any notification about this.
+ - `tenancyName` (Optinal, but recommended on first use of companyId): Zwapgrid id of the users company. This will become the sub-domain of the Zwapgrid account, i.e. passing `zwapgrid-ab` will create a Zwapgrid account at `zwapgrid-ab.zwapgrid.com`. Subdomain formatting rules therefore apply. Recommended to use email domain if corporate or url-safe company name. If omitted will use url-safe company name.
  - `sourceConnectionId` (Optional but recommended, required if hideSource is true): The connection id. If omitted, the user will have to enter their own credentials.
  - `source` (Optional but recommended, required if hideSource is true): The system key for the source system. Generally your system key. If omitted, the user will have to select the source system.
  -  `export.connection.{parameter}` (Optional) Could be used to send the source credentials in plain text.
@@ -37,7 +37,11 @@ When Marketplace should be embedded in a service, these steps should be taken:
  - `target`, `targetConnectionId` and `hideTarget` (Optional): The same as for source, these can be used to set/configure specific target system as well.
  Example embedding code: 
  ```
-<iframe src="https://app.zwapgrid.com/marketplace?otc={token}&clientId={yourClientId}&orgno=123456-1234&name=Zwapgrid AB&email=user@zwapgrid.com&sourceConnectionId={encryptedConnectionId}&source={yourSystemKey}&hideSource=True" height="600px" width="100%" style="border: 0;">
+<iframe src="https://app.zwapgrid.com/marketplace?otc={token}&clientId={yourClientId}&companyId=123456-1234&name=Zwapgrid AB&email=user@zwapgrid.com&sourceConnectionId={encryptedConnectionId}&source={yourSystemKey}&hideSource=True" height="600px" width="100%" style="border: 0;">
+</iframe>
+```
+ ```
+<iframe src="https://app.zwapgrid.com/marketplace?otc={token}&clientId={yourClientId}&companyId=my-company&name=Zwapgrid AB&email=user@zwapgrid.com&sourceConnectionId={encryptedConnectionId}&source={yourSystemKey}&hideSource=True" height="600px" width="100%" style="border: 0;">
 </iframe>
 ```
  
