@@ -93,7 +93,7 @@ namespace Marketplace.Pages
                 $"&export.connectionId={_user.ZgConnectionId.Value}" +
                 $"&source={sourceSystem}" +
                 $"&hideSource={hideSource}" +
-                $"&lang=se"; // examples: 'en', 'sv'
+                $"&lang=sv"; // examples: 'en', 'sv'
         }
 
         // When an account has been created or the user has authorized you to access their account, a JS event will
