@@ -45,6 +45,7 @@ When Marketplace should be embedded in a service, these steps should be taken:
 <iframe src="https://app.zwapgrid.com/marketplace?otc={token}&companyId=my-company&name=My Company&email=user@my-company.com&sourceConnectionId={encryptedConnectionId}&source={yourSystemKey}&hideSource=True" height="600px" width="100%" style="border: 0;">
 </iframe>
 ```
+**Each query parameter should be encoded, e.g.: email=user%2Bme@gmail.com should be instead of email=user+me@gmail.com.**
  
 ### Notes
 This project is not at all adapted to code conventions and principles, we've tried keeping all needed code in the same place and uncluttered by other code. We recommend adding proper error handling and adapting develop principles.
