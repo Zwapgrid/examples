@@ -120,7 +120,11 @@ namespace Marketplace.Pages
             return new JsonResult(new { AccessToken = result?.Response?.AccessToken });
         }
 
-        //Get access token using refresh token, stored for currently logged in user
+        /// <summary>
+        /// Get access token using refresh token, stored for currently logged in user
+        /// Be aware that you cannot use the same refresh token more than once, if you do so, you will get 401
+        /// </summary>
+        /// <returns></returns>
         public async Task<IActionResult> OnGetRefreshAccessToken()
         {
             if (User == null)
