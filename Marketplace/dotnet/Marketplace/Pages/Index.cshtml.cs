@@ -108,7 +108,8 @@ namespace Marketplace.Pages
                 await UpdateUserTokensAsync(user, result.Response.AccessToken, result.Response.RefreshToken);
             }
 
-            return new JsonResult(new { AccessToken = result?.Response?.AccessToken });
+            return new JsonResult(new
+                { AccessToken = result?.Response?.AccessToken, EncryptedAccessToken = result?.Response?.EncryptedAccessToken });
         }
 
         //Get access token using refresh token, stored for currently logged in user
@@ -135,8 +136,9 @@ namespace Marketplace.Pages
                 //Updating user tokens here, since refresh token is valid only for 1 request
                 await UpdateUserTokensAsync(user, result.Response.AccessToken, result.Response.RefreshToken);
             }
-            
-            return new JsonResult(new { AccessToken = result?.Response?.AccessToken });
+
+            return new JsonResult(new
+                { AccessToken = result?.Response?.AccessToken, EncryptedAccessToken = result?.Response?.EncryptedAccessToken });
         }
         
         [BindProperty]

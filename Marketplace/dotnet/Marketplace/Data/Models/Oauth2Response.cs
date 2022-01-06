@@ -10,5 +10,7 @@ namespace Marketplace.Data.Models
         public string AccessToken { get; set; }
 
         public string RefreshToken { get; set; }
+        
+        public string EncryptedAccessToken { get; set; }
     }
 }
