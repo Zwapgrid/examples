@@ -10,18 +10,18 @@ namespace Marketplace.Data.Models
         /// </summary>
         [JsonProperty("title", Required = Required.Always)]
         public string Title { get; set; }
-        
+
         [JsonProperty("id")]
         public string Id { get; set; }
-        
-        [JsonProperty("orgNo")]
 
-        public string OrgNo { get; set; }
-        
+        [JsonProperty("companyId")]
+
+        public string CompanyId { get; set; }
+
         // Use the connection type for your system
         [JsonProperty("invoiceOnline")]
         public InvoiceOnlineConnection InvoiceOnlineConnection { get; set; }
-        
+
         // More connection types will be added here....
     }
 }

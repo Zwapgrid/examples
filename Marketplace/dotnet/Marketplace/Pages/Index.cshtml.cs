@@ -24,9 +24,9 @@ namespace Marketplace.Pages
         private readonly string _clientSecret;
 
         private ApplicationUser _user;
-        
+
         private string _otc;
-        
+
         public IndexModel(
             ILogger<IndexModel> logger,
             UserManager<ApplicationUser> userManager,
@@ -43,12 +43,12 @@ namespace Marketplace.Pages
         public async Task OnGet()
         {
             const string sourceSystem = "InvoiceOnline";
-            
+
             if(!User.Identity.IsAuthenticated)
             {
                 return;
             }
-            
+
             //Get the current user
             _user = await _userManager.GetUserAsync(User);
             if (_user == null)
@@ -70,9 +70,9 @@ namespace Marketplace.Pages
                 // "secretKey" and a "storeId", but the credentials for your system is probably different.
                 const string userSecretKey = "{secretKey}";
                 const string userStoreId = "{storeId}";
-                
+
                 // Create connection and store connectionId
-                var connectionId = await CreateConnection(_user.CompanyName, _user.CompanyOrgNo, userSecretKey, userStoreId);
+                var connectionId = await CreateConnection(_user.CompanyName, _user.CompanyId, userSecretKey, userStoreId);
 
                 // Store the connectionId for later use, so you don't have to create new connection every time.
                 _user.ZgConnectionId = connectionId;
@@ -84,11 +84,20 @@ namespace Marketplace.Pages
             var hideSource = true.ToString();
 
             // Build url from user info and credentials
-            IFrameUrl = $"{_zgAppUrl}marketplace?otc={_otc}&name={_user.CompanyName}&orgno={_user.CompanyOrgNo}&email={_user.Email}&tenancyName={_user.CompanyName}&export.connectionId={_user.ZgConnectionId.Value}&source={sourceSystem}&hideSource={hideSource}";
+            IFrameUrl = $"{_zgAppUrl}marketplace?" +
+                $"otc={_otc}" +
+                $"&name={_user.CompanyName}" +
+                $"&companyId={_user.CompanyId}" +
+                $"&email={_user.Email}" +
+                $"&tenancyName={_user.CompanyName}" +
+                $"&export.connectionId={_user.ZgConnectionId.Value}" +
+                $"&source={sourceSystem}" +
+                $"&hideSource={hideSource}" +
+                $"&lang=sv"; // examples: 'en', 'sv'
         }
 
         // When an account has been created or the user has authorized you to access their account, a JS event will
-        // be triggered with key 'client.authenticated'. You should register a listener to this and handle the 
+        // be triggered with key 'client.authenticated'. You should register a listener to this and handle the
         // authorizationCode provided. Exchange it for AccessToken and RefreshToken if you want to access the users'
         // account at a later time. Check site.js for example.
         public async Task<IActionResult> OnGetClientAuthenticated(string authorizationCode)
@@ -112,14 +121,18 @@ namespace Marketplace.Pages
                 { AccessToken = result?.Response?.AccessToken, EncryptedAccessToken = result?.Response?.EncryptedAccessToken });
         }
 
-        //Get access token using refresh token, stored for currently logged in user
+        /// <summary>
+        /// Get access token using refresh token, stored for currently logged in user
+        /// Be aware that you cannot use the same refresh token more than once, if you do so, you will get 401
+        /// </summary>
+        /// <returns></returns>
         public async Task<IActionResult> OnGetRefreshAccessToken()
         {
             if (User == null)
             {
                 return Unauthorized();
             }
-            
+
             var user = await _userManager.GetUserAsync(User);
             var request = new Oauth2Request
             {
@@ -128,7 +141,7 @@ namespace Marketplace.Pages
                 RefreshToken = user.RefreshToken,
                 GrantType = "refresh_token"
             };
-            
+
             var result = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token");
 
             if (result?.Response != null)
@@ -140,7 +153,7 @@ namespace Marketplace.Pages
             return new JsonResult(new
                 { AccessToken = result?.Response?.AccessToken, EncryptedAccessToken = result?.Response?.EncryptedAccessToken });
         }
-        
+
         [BindProperty]
         public string IFrameUrl { get; set; }
 
@@ -149,7 +162,7 @@ namespace Marketplace.Pages
             var createModel = new ZgConnection
             {
                 Title = title,
-                OrgNo = orgNo,
+                CompanyId = orgNo,
                 InvoiceOnlineConnection = new InvoiceOnlineConnection
                 {
                     SecretKey = secretKey,
@@ -161,10 +174,10 @@ namespace Marketplace.Pages
 
             if(string.IsNullOrEmpty(connectionResult.Id))
                 throw new Exception("Something went wrong");
-            
+
             return Convert.ToInt32(connectionResult.Id);
         }
-        
+
         private async Task<TResult> Post<TInput, TResult>(TInput input, string endpoint, string action)
         {
             string responseContent;
@@ -181,7 +194,7 @@ namespace Marketplace.Pages
             }
 
             var responseObject = JsonConvert.DeserializeObject<ZgApiResponse<TResult>>(responseContent);
-            
+
             return responseObject.Result;
         }
 
@@ -204,14 +217,14 @@ namespace Marketplace.Pages
             user.RefreshToken = refreshToken;
             return _userManager.UpdateAsync(user);
         }
-        
+
         private async Task Handle401Async()
         {
             if (_user == null)
             {
                 return;
             }
-            
+
             // If no refresh token, clear access token and exit
             if (string.IsNullOrEmpty(_user.RefreshToken))
             {
@@ -226,7 +239,7 @@ namespace Marketplace.Pages
                 RefreshToken = _user.RefreshToken,
                 GrantType = "refresh_token"
             };
-                
+
             var response = await Post<Oauth2Request, Oauth2Response>(request, "oauth2", "token");
             _user.AccessToken = response?.Response?.AccessToken;
             _user.RefreshToken = response?.Response?.RefreshToken;
@@ -243,14 +256,14 @@ namespace Marketplace.Pages
                 {
                     request.Content = content;
                 }
-                
+
                 AddAuthorizationHeader(request);
 
                 return client.SendAsync(request);
             }
 
             var response = await SendAsync();
-            
+
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 await Handle401Async();
@@ -268,7 +281,7 @@ namespace Marketplace.Pages
         private void AddAuthorizationHeader(HttpRequestMessage request)
         {
             request.Headers.Remove("Authorization");
-            
+
             if (_user != null && !string.IsNullOrEmpty(_user.AccessToken))
             {
                 request.Headers.Add("Authorization", "Bearer " + _user.AccessToken);

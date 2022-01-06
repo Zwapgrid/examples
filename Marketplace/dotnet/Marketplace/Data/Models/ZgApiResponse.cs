@@ -9,8 +9,14 @@ namespace Marketplace.Data.Models
         
         [JsonProperty("success")]
         public bool Success { get; set; }
+
+        public Error Error { get; set; }
+    }
+
+    internal class Error
+    {
+        public string Message { get; set; }
         
-        [JsonProperty("error")]
-        public string Error { get; set; }
+        public string Details { get; set; }
     }
 }
