@@ -20,10 +20,12 @@ For the Marketplace to work, a client must be created in Zwapgrid and **clientId
 
 #### Basic flow
 When Marketplace should be embedded in a service, these steps should be taken:
-1. A one-time code should be obtained by posting to API endpoint `api/v1/oauth2/one-time-code`.
-2. (optional) Create connection for the user: If this is a first-time user, a connection should be created in Zwapgrid with the credentials for that user to your system by posting to API endpoint `api/v1/connections`. Save the resulting connection id for later use! This could be omitted if you want a Marketplace where the user have to enter their credentials themselves.
-3. Encrypt connection id together with the one-time code by using your public key from `api/v1/me/public-key`.
-4. Concatenate and embed URL for zwapstore by base URL 'https://app.zwapgrid.com/zwapstore' and adding query parameters as follows:
+1. Get client ID/Secret for future purposes: go into Administration => Integration and Create new client
+![image](https://user-images.githubusercontent.com/3764236/149756420-f79cf0b9-5c0d-4f98-a48e-b366fc2aaf9f.png)
+2. A one-time code should be obtained by posting to API endpoint `api/v1/oauth2/one-time-code`.
+3. (optional) Create connection for the user: If this is a first-time user, a connection should be created in Zwapgrid with the credentials for that user to your system by posting to API endpoint `api/v1/connections`. Save the resulting connection id for later use! This could be omitted if you want a Marketplace where the user have to enter their credentials themselves.
+4. Encrypt connection id together with the one-time code by using your public key from `api/v1/me/public-key`.
+5. Concatenate and embed URL for zwapstore by base URL 'https://app.zwapgrid.com/zwapstore' and adding query parameters as follows:
  - `otc` (Required): The one-time code.
  - `companyId` (Required): Identifier of the users company (Organization number in case of Swedish company).
  - `name` (Required on first use of companyId): The name of the users company. Will become the name of the company in Zwapgrid.
