@@ -86,7 +86,7 @@ function onIntegrationCreatedEvent(systems) {
 function onClientAuthenticatedEvent(authMessage){
     let {authorizationCode} = authMessage;
     callApi('GET', '/Index?handler=ClientAuthenticated&authorizationCode=' + authorizationCode, function(data){
-        sendToIframe('accessToken', data.accessToken);
+        sendToIframe('tokens', data);
     })
 }
 
@@ -94,7 +94,6 @@ function onClientAuthenticatedEvent(authMessage){
 // getting access token, using active user's refresh token
 function onAccessTokenMissingEvent(){
     callApi('GET', '/Index?handler=RefreshAccessToken', function(data){
-        let accessToken = data.accessToken;
-        sendToIframe('accessToken', accessToken);
+        sendToIframe('tokens', data);
     })
 }

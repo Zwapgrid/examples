@@ -117,7 +117,8 @@ namespace Marketplace.Pages
                 await UpdateUserTokensAsync(user, result.Response.AccessToken, result.Response.RefreshToken);
             }
 
-            return new JsonResult(new { AccessToken = result?.Response?.AccessToken });
+            return new JsonResult(new
+                { AccessToken = result?.Response?.AccessToken, EncryptedAccessToken = result?.Response?.EncryptedAccessToken });
         }
 
         /// <summary>
@@ -149,7 +150,8 @@ namespace Marketplace.Pages
                 await UpdateUserTokensAsync(user, result.Response.AccessToken, result.Response.RefreshToken);
             }
 
-            return new JsonResult(new { AccessToken = result?.Response?.AccessToken });
+            return new JsonResult(new
+                { AccessToken = result?.Response?.AccessToken, EncryptedAccessToken = result?.Response?.EncryptedAccessToken });
         }
 
         [BindProperty]
