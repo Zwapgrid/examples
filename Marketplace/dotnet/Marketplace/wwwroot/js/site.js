@@ -1,6 +1,8 @@
 ﻿// Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
 
+var queryStringParams = [];
+
 // Write your Javascript code.
 function bindEvent(element, eventName, eventHandler) {
     if (element.addEventListener) {
@@ -41,10 +43,10 @@ bindEvent(window, 'message', function (e) {
     }
     
     //checking if message came from iframe with a valid host
-    let validHost =  new URL(zsiFrame.attributes['src'].value).host;
-    if(!(new URL(e.origin)).host.includes(validHost)){
-        return;
-    }
+     let validHost =  new URL(zsiFrame.attributes['src'].value).host;
+     if(!(new URL(e.origin)).host.includes(validHost)){
+         return;
+     }
     
     let message = JSON.parse(e.data);
     if (!message) {
@@ -96,4 +98,35 @@ function onAccessTokenMissingEvent(){
     callApi('GET', '/Index?handler=RefreshAccessToken', function(data){
         sendToIframe('tokens', data);
     })
+}
+
+function onLanguageChanged(sender) {
+
+    let langValue = sender.value;
+
+    if (!langValue)
+        return;
+
+    let existingLangParam = queryStringParams.find(p => p.key == 'lang');
+
+    if (existingLangParam == null) {
+        queryStringParams.push({ key: 'lang', value: langValue });
+    }
+    else {
+        existingLangParam.value = langValue;
+    }
+
+    let queryStringUrl = "";
+
+    for (let p of queryStringParams) {
+        queryStringUrl += p.key + '=' + p.value + '&';
+    }
+
+    // reload with query string params
+    var href = window.location.protocol + "//" +
+        window.location.host +
+        window.location.pathname +
+        '?' + queryStringUrl;
+
+    window.location.href = href;
 }

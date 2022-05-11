@@ -27,6 +27,9 @@ namespace Marketplace.Pages
 
         private string _otc;
 
+        [FromQuery(Name ="lang")]
+        public string LanguageCode { get; set; }
+
         public IndexModel(
             ILogger<IndexModel> logger,
             UserManager<ApplicationUser> userManager,
@@ -93,7 +96,7 @@ namespace Marketplace.Pages
                 $"&export.connectionId={_user.ZgConnectionId.Value}" +
                 $"&source={sourceSystem}" +
                 $"&hideSource={hideSource}" +
-                $"&lang=sv"; // examples: 'en', 'sv'
+                $"&lang={LanguageCode}"; // examples: 'en', 'sv'
         }
 
         // When an account has been created or the user has authorized you to access their account, a JS event will
