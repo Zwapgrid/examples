@@ -43,10 +43,10 @@ bindEvent(window, 'message', function (e) {
     }
     
     //checking if message came from iframe with a valid host
-     let validHost =  new URL(zsiFrame.attributes['src'].value).host;
-     if(!(new URL(e.origin)).host.includes(validHost)){
-         return;
-     }
+    let validHost =  new URL(zsiFrame.attributes['src'].value).host;
+    if(!(new URL(e.origin)).host.includes(validHost)){
+        return;
+    }
     
     let message = JSON.parse(e.data);
     if (!message) {
