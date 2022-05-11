@@ -5,11 +5,24 @@
 }
 
 <div class="text-center">
-    <h1 class="display-4">Integrations!</h1>
+    <h1 class="display-4 mb-4">Integrations!</h1>
+
     @if (User.Identity.IsAuthenticated)
     {
+        <select class='mb-2' onchange='onLanguageChanged(this)'>
+            <option>Change language</option>
+            <option value='en'>en</option>
+            <option value='sv'>sv</option>
+        </select>
+
         <div class="embed-responsive embed-responsive-16by9">
+            <!-- THE IFRAME ELEMENT-->
             <iframe class="embed-responsive-item" id="zsiFrame" src="@(Model.IFrameUrl)" style="border: 0;"></iframe>
+        </div>
+
+        <div class='mt-2'>
+            <div>Current iFrame URL</div>
+            <div style="word-break: break-all">@Model.IFrameUrl</div>
         </div>
     }
     <div id="message" class="integration-created-block" hidden>
