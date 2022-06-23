@@ -33,7 +33,7 @@ When Marketplace should be embedded in a service, these steps should be taken:
  - `tenancyName` (Optinal, but recommended on first use of companyId): Zwapgrid ID of the users company. This will become the sub-domain of the Zwapgrid account, i.e. passing `zwapgrid-ab` will create a Zwapgrid account at `zwapgrid-ab.zwapgrid.com`. Subdomain formatting rules therefore apply. Recommended to use email domain if corporate or url-safe company name. If omitted will use url-safe company name.
  - `sourceConnectionId` (Optional but recommended, required if hideSource is true): The connection ID. If omitted, the user will have to enter their own credentials via UI.
  - `source` (Optional but recommended, required if hideSource is true): The system key for the source system. Generally your system key. If omitted, the user will have to select the source system via UI.
- -  `export.connection.{parameter}` (Optional) Could be used to set source connection properites (like credentials) in plain text.
+ -  `export.connection.{parameter}` (Optional) Could be used to set source connection properites (like credentials) in plain text. Parameter name should start with lowercase letter, e.g. `export.connection.title=MyTitle&export.connection.apiKey=MyAPIKey`
  - `hideSource` (Optional but recommended): If sourceConnectionId and source is set, the user doesn't have to make any options, so the source can be hidden. Recommended to make the Marketplace feel more integrated into your service.
  -  `output.connection.{parameter}` (Optional) Could be used to set target connection propeties (like credentials) in plain text.
  - `target`, `targetConnectionId` and `hideTarget` (Optional): The same as for source, these can be used to set/configure specific target system as well.
